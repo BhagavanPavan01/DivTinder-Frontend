@@ -9,7 +9,7 @@ const Home = () => {
       <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 bg-gradient-to-br from-rose-500 via-pink-500 to-purple-600 text-white">
 
         <h1 className="text-6xl font-extrabold leading-tight mb-6">
-          Find Your Perfect <span className="text-yellow-300">Match</span> 💘
+          Find Your Perfect <span className="text-yellow-300">Match</span> 💻
         </h1>
 
         <p className="max-w-2xl text-lg opacity-90 mb-8">
@@ -76,7 +76,7 @@ const Home = () => {
       </section>
 
       {/* Match Preview Section */}
-      <section className="py-20 bg-base-200 px-6">
+      {/* <section className="py-20 bg-base-200 px-6">
         <div className="max-w-6xl mx-auto text-center">
 
           <h2 className="text-4xl font-bold mb-12">
@@ -92,7 +92,7 @@ const Home = () => {
               >
                 <figure>
                   <img
-                    src="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp"
+                    src="https://t4.ftcdn.net/jpg/02/05/93/21/360_F_205932110_IWiDmketVT703mNPZ8eSn76Sa25QoSYw.jpg"
                     alt="profile"
                   />
                 </figure>
@@ -111,7 +111,7 @@ const Home = () => {
           </div>
 
         </div>
-      </section>
+      </section> */}
 
     </div>
   );
