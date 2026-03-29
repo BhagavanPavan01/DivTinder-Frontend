@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import Profile from "./Profile";
 import Feed from "./Feed";
+import Connections from "./Connections";
 
 const Navbar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
