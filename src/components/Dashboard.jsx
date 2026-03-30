@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Link } from 'react-router-dom';
+import ChatPage from "../pages/ChatPage"; // Import ChatPage instead
 
 // Create axios instance with baseURL
 const api = axios.create({
@@ -42,6 +43,9 @@ const Dashboard = () => {
   });
   const [error, setError] = useState("");
   const [lastLogin, setLastLogin] = useState(null);
+  
+  // Chat state - for navigation only
+  const [unreadChatsCount, setUnreadChatsCount] = useState(0);
 
   const navigate = useNavigate();
 
@@ -53,7 +57,20 @@ const Dashboard = () => {
     }
 
     fetchDashboardData();
+    fetchUnreadChatsCount();
   }, []);
+
+  const fetchUnreadChatsCount = async () => {
+    try {
+      const response = await api.get("/chats");
+      if (response.data.success) {
+        const unreadCount = response.data.data.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0);
+        setUnreadChatsCount(unreadCount);
+      }
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -81,7 +98,7 @@ const Dashboard = () => {
       // Generate activities based on real data
       generateActivities(profileRes.data, pendingCountRes.data.count, connectionsRes.data.data);
 
-      // Generate recommendations (you can implement a real recommendation API later)
+      // Generate recommendations
       generateRecommendations();
 
       setLoading({
@@ -100,13 +117,21 @@ const Dashboard = () => {
     }
   };
 
+  // Navigate to chat page
+  const openChat = (userId = null) => {
+    if (userId) {
+      navigate(`/chat?userId=${userId}`);
+    } else {
+      navigate('/chat');
+    }
+  };
+
   const generateActivities = (profileData, pendingCount, connections) => {
     const activities = [];
 
     // Profile last update
     const lastUpdate = new Date(profileData.updatedAt);
     const now = new Date();
-    const hoursSinceUpdate = Math.floor((now - lastUpdate) / (1000 * 60 * 60));
 
     activities.push({
       id: 1,
@@ -140,7 +165,7 @@ const Dashboard = () => {
           id: 3 + index,
           type: 'new_connection',
           title: 'New Connection',
-          description: `You connected with ${conn.user.name}`,
+          description: `You connected with ${conn.user?.name || 'someone'}`,
           time: new Date(conn.connectedSince),
           timeAgo: formatTimeAgo(new Date(conn.connectedSince)),
           icon: '🤝',
@@ -169,11 +194,9 @@ const Dashboard = () => {
   };
 
   const generateRecommendations = () => {
-    // This would ideally come from a recommendation API
-    // For now, using mock data based on user's skills
     const mockRecommendations = [
       {
-        id: 1,
+        id: "69a4538c87dcca8c70a09a57", // Example user ID
         name: "Sarah Johnson",
         role: "Senior MERN Stack Developer",
         skills: ["React", "Node.js", "MongoDB"],
@@ -181,7 +204,7 @@ const Dashboard = () => {
         match: "95% match"
       },
       {
-        id: 2,
+        id: "69ca281c44eb142dbbbf6d53", // Example user ID
         name: "Michael Chen",
         role: "Machine Learning Engineer",
         skills: ["Python", "Deep Learning", "AI"],
@@ -189,7 +212,7 @@ const Dashboard = () => {
         match: "88% match"
       },
       {
-        id: 3,
+        id: "69a4538c87dcca8c70a09a58", // Example user ID
         name: "Priya Patel",
         role: "Full Stack Developer",
         skills: ["Java", "Spring Boot", "React"],
@@ -295,7 +318,22 @@ const Dashboard = () => {
               {lastLogin && `Last login: ${formatTimeAgo(lastLogin)}`}
             </p>
           </div>
-          {/* <div className="flex gap-3">
+          <div className="flex gap-3">
+            {/* Chat Button with Notification Badge */}
+            <button
+              onClick={() => openChat()}
+              className="relative flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 transition shadow-md"
+            >
+              <span>💬</span>
+              Chats
+              {unreadChatsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                  {unreadChatsCount > 99 ? '99+' : unreadChatsCount}
+                </span>
+              )}
+            </button>
+            
+            {/* Requests Button */}
             <button
               onClick={() => navigate("/requests")}
               className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition shadow-sm"
@@ -303,7 +341,7 @@ const Dashboard = () => {
               <span>📨</span>
               Requests {stats.pendingCount > 0 && `(${stats.pendingCount})`}
             </button>
-          </div> */}
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -348,22 +386,21 @@ const Dashboard = () => {
                 ⏳
               </div>
             </div>
-            </Link>
+          </Link>
 
-            <Link
-              to="/sentRequests"
-              className="block bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition hover:shadow-xl cursor-pointer"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500 text-sm">Sent</p>
-                  <p className="text-2xl font-bold text-gray-800">{stats.sentCount}</p>
-                </div>
-                <div className="bg-green-100 p-3 rounded-full text-green-600 text-2xl">
-                  📤
-                </div>
+          <Link
+            to="/sentRequests"
+            className="block bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition hover:shadow-xl cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Sent</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.sentCount}</p>
               </div>
-            
+              <div className="bg-green-100 p-3 rounded-full text-green-600 text-2xl">
+                📤
+              </div>
+            </div>
           </Link>
         </div>
 
@@ -534,12 +571,20 @@ const Dashboard = () => {
                           </span>
                         ))}
                       </div>
-                      <button
-                        onClick={() => navigate(`/profile/${rec.id}`)}
-                        className="mt-3 text-xs text-pink-600 hover:text-pink-700 font-medium"
-                      >
-                        View Profile →
-                      </button>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => navigate(`/profile/${rec.id}`)}
+                          className="text-xs text-pink-600 hover:text-pink-700 font-medium"
+                        >
+                          View Profile →
+                        </button>
+                        <button
+                          onClick={() => openChat(rec.id)}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          💬 Message
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import ChatModal from './Chat/ChatModal';
 
 const Connections = () => {
   const [connections, setConnections] = useState([]);
@@ -12,6 +13,8 @@ const Connections = () => {
   const [showModal, setShowModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const api = axios.create({
     baseURL: 'http://localhost:3000',
@@ -31,7 +34,17 @@ const Connections = () => {
 
   useEffect(() => {
     fetchConnections();
+    fetchCurrentUser();
   }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await api.get('/profile/view');
+      setCurrentUser(response.data);
+    } catch (err) {
+      console.error('Error fetching current user:', err);
+    }
+  };
 
   const fetchConnections = async () => {
     try {
@@ -54,15 +67,26 @@ const Connections = () => {
     }
   };
 
+  const handleMessageClick = (user, e) => {
+    e.stopPropagation();
+    setSelectedUser(user);
+    setShowChatModal(true);
+  };
+
   const handleCardClick = (connection) => {
     setSelectedUser(connection.user);
     setShowModal(true);
   };
 
   const handlePhotoClick = (photoUrl, e) => {
-    e.stopPropagation(); // Prevent card click when clicking on photo
+    e.stopPropagation();
     setSelectedPhoto(photoUrl);
     setShowPhotoModal(true);
+  };
+
+  const closeChatModal = () => {
+    setShowChatModal(false);
+    setSelectedUser(null);
   };
 
   const filteredConnections = connections.filter(conn =>
@@ -81,7 +105,6 @@ const Connections = () => {
     return `${firstName || ''} ${lastName || ''}`.trim();
   };
 
-  // Generate different gradient colors based on user name
   const getGradient = (name) => {
     const gradients = [
       'from-amber-500 to-orange-600',
@@ -98,7 +121,6 @@ const Connections = () => {
     return gradients[index];
   };
 
-  // Get accent color for message button
   const getButtonColor = (name) => {
     const colors = [
       'bg-amber-600 hover:bg-amber-700',
@@ -174,7 +196,7 @@ const Connections = () => {
                   placeholder="Search connections..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full md:w-80 pl-10 pr-4 py-2.5 border border-gray-200 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm"
+                  className="w-full md:w-80 pl-10 pr-4 py-2.5 border border-gray-200 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm text-black"
                 />
                 <svg className="w-5 h-5 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -285,9 +307,8 @@ const Connections = () => {
                       )}
 
                       {/* Message Button */}
-                      <Link
-                        to={`/chat/${user?._id}`}
-                        onClick={(e) => e.stopPropagation()} // Prevent card click when clicking message button
+                      <button
+                        onClick={(e) => handleMessageClick(user, e)}
                         className={`block w-full py-3 ${buttonColor} text-white text-center rounded-xl transition-all duration-200 shadow-md hover:shadow-lg font-medium transform group-hover:scale-[1.02]`}
                       >
                         <span className="flex items-center justify-center gap-2">
@@ -296,7 +317,7 @@ const Connections = () => {
                           </svg>
                           Send Message
                         </span>
-                      </Link>
+                      </button>
 
                       {/* Connected since (optional) */}
                       {connection.connectedSince && (
@@ -338,7 +359,7 @@ const Connections = () => {
                   <img
                     src={selectedUser.photoUrl}
                     alt={getFullName(selectedUser.firstName, selectedUser.lastName)}
-                    onClick={() => handlePhotoClick(selectedUser.photoUrl, new Event('click'))}
+                    onClick={(e) => handlePhotoClick(selectedUser.photoUrl, e)}
                     className="w-32 h-32 rounded-full object-cover border-4 border-purple-500 shadow-lg cursor-pointer hover:opacity-90 transition-opacity"
                   />
                 ) : (
@@ -425,13 +446,15 @@ const Connections = () => {
 
               {/* Action Buttons */}
               <div className="mt-6 flex gap-3">
-                <Link
-                  to={`/chat/${selectedUser._id}`}
-                  onClick={() => setShowModal(false)}
+                <button
+                  onClick={() => {
+                    setShowModal(false);
+                    handleMessageClick(selectedUser, new Event('click'));
+                  }}
                   className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl text-center font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-md"
                 >
                   Send Message
-                </Link>
+                </button>
                 <button
                   onClick={() => setShowModal(false)}
                   className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-300 transition-all duration-200"
@@ -463,6 +486,16 @@ const Connections = () => {
             />
           </div>
         </div>
+      )}
+
+      {/* Chat Modal */}
+      {showChatModal && selectedUser && currentUser && (
+        <ChatModal
+          isOpen={showChatModal}
+          onClose={closeChatModal}
+          user={selectedUser}
+          currentUserId={currentUser._id}
+        />
       )}
     </>
   );
