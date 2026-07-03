@@ -1,353 +1,367 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { chatService } from '../../services/chatService';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
+import { chatService } from '../../services/chatService';
 
 const ChatModal = ({ isOpen, onClose, user, currentUserId }) => {
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [chatId, setChatId] = useState(null);
-  const [error, setError] = useState(null);
-  const messagesEndRef = useRef(null);
-  const messagesContainerRef = useRef(null);
-  const inputRef = useRef(null);
-  const { socket, isConnected, sendMessage, onNewMessage, onMessageSent, markAsRead } = useSocket();
+    const { token } = useAuth();
+    const { socket, isConnected, onlineUsers } = useSocket();
+    const [chatId, setChatId] = useState(null);
+    const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [text, setText] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const [otherUserTyping, setOtherUserTyping] = useState(false);
 
-  // Load chat when modal opens
-  useEffect(() => {
-    if (isOpen && user) {
-      loadChat();
-    }
-  }, [isOpen, user]);
+    const messagesEndRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
 
-  // Listen for new messages via socket
-  useEffect(() => {
-    if (!socket || !chatId) return;
+    // Auto-scroll messages list to the bottom
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
 
-    const handleNewMessage = (message) => {
-      if (message.chatId === chatId) {
-        // Add new message to the END of the array (bottom)
-        setMessages(prev => [...prev, message]);
+    useEffect(() => {
         scrollToBottom();
-        
-        // Mark as read if chat is open
-        if (message.senderId !== currentUserId) {
-          markAsRead(chatId, [message._id]);
+    }, [messages, otherUserTyping]);
+
+    // Initialise chat session and load history
+    useEffect(() => {
+        const initChat = async () => {
+            if (!user?._id) return;
+            try {
+                setLoading(true);
+                setError(null);
+
+                // Fetch or create private chat
+                const result = await chatService.getPrivateChat(user._id);
+                const chatData = result.data || result;
+                const activeChatId = chatData.chatId || chatData._id;
+
+                if (!activeChatId) {
+                    throw new Error('Received invalid chat session data');
+                }
+
+                setChatId(activeChatId);
+
+                // Fetch messages history - try standard service first, then direct REST fallback
+                let messagesData = [];
+                try {
+                    const res = await chatService.getMessages(activeChatId, 1, 100);
+                    messagesData = res.data?.messages || res.messages || res.data || res;
+                } catch (err) {
+                    console.warn('chatService.getMessages fallback initiated', err);
+                    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                    const response = await fetch(`${API_URL}/api/chats/${activeChatId}?page=1&limit=100`, {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token') || token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    if (response.ok) {
+                        const body = await response.json();
+                        messagesData = body.data?.messages || body.messages || [];
+                    } else {
+                        throw new Error('Failed to fetch message history');
+                    }
+                }
+
+                if (Array.isArray(messagesData)) {
+                    setMessages(
+                        messagesData.map((m) => ({
+                            ...m,
+                            isOwn: m.senderId === currentUserId || m.senderId?._id === currentUserId
+                        }))
+                    );
+                }
+            } catch (err) {
+                console.error('ChatModal creation / messages retrieval failed:', err);
+                setError('Failed to load chat history. Please try again.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (isOpen) {
+            initChat();
         }
-      }
+    }, [isOpen, user?._id, currentUserId, token]);
+
+    // Escape key handler to close modal
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
+    // Socket event listeners
+    useEffect(() => {
+        if (!socket || !chatId) return;
+
+        const handleNewMessage = (messageData) => {
+            if (messageData.chatId === chatId) {
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        _id: messageData._id,
+                        text: messageData.text,
+                        senderId: messageData.senderId,
+                        createdAt: messageData.createdAt,
+                        isOwn: messageData.senderId === currentUserId,
+                        isRead: false
+                    }
+                ]);
+                setOtherUserTyping(false);
+            }
+        };
+
+        const handleMessageSent = (messageData) => {
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg._id === messageData.tempId ? { ...messageData, isOwn: true } : msg
+                )
+            );
+        };
+
+        const handleMessageError = ({ error, tempId }) => {
+            console.error('Socket message placement failed:', error);
+            if (tempId) {
+                setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
+            }
+        };
+
+        const handleUserTyping = ({ fromUserId, chatId: typingChatId, isTyping }) => {
+            if (typingChatId === chatId && fromUserId !== currentUserId) {
+                setOtherUserTyping(isTyping);
+            }
+        };
+
+        socket.on('new-private-message', handleNewMessage);
+        socket.on('message-sent', handleMessageSent);
+        socket.on('message-error', handleMessageError);
+        socket.on('user-typing', handleUserTyping);
+
+        return () => {
+            socket.off('new-private-message', handleNewMessage);
+            socket.off('message-sent', handleMessageSent);
+            socket.off('message-error', handleMessageError);
+            socket.off('user-typing', handleUserTyping);
+        };
+    }, [socket, chatId, currentUserId]);
+
+    const handleSend = async (e) => {
+        if (e) e.preventDefault();
+        if (!text.trim() || !chatId) return;
+
+        const currentText = text.trim();
+        setText('');
+
+        // Emit typing end to socket
+        if (socket && isConnected) {
+            socket.emit('typing-end', { toUserId: user._id, chatId });
+        }
+
+        const tempId = `temp_${Date.now()}_${Math.random()}`;
+        const tempMessage = {
+            _id: tempId,
+            text: currentText,
+            senderId: currentUserId,
+            createdAt: new Date().toISOString(),
+            isOwn: true,
+            isRead: false,
+            isTemp: true
+        };
+
+        setMessages((prev) => [...prev, tempMessage]);
+
+        if (socket && isConnected) {
+            socket.emit('private-message', {
+                toUserId: user._id,
+                text: currentText,
+                tempId
+            });
+        } else {
+            console.warn('Socket unavailable. Executing fallback HTTP message post.');
+            try {
+                await chatService.sendMessage(chatId, currentText);
+            } catch (err) {
+                console.error('Failed to send fallback chat message:', err);
+                // Evict optimistic message chunk
+                setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
+                setError('Network error: Message could not be sent.');
+                setTimeout(() => setError(null), 4000);
+            }
+        }
     };
 
-    const handleMessageSent = (message) => {
-      if (message.chatId === chatId) {
-        // Replace temp message with real one
-        setMessages(prev => prev.map(m => 
-          m.tempId === message.tempId ? { ...message, isTemp: false } : m
-        ));
-        scrollToBottom();
-      }
+    const handleInputChange = (e) => {
+        setText(e.target.value);
+
+        if (!socket || !isConnected || !chatId) return;
+
+        // Send typing start notification
+        if (!isTyping) {
+            setIsTyping(true);
+            socket.emit('typing-start', { toUserId: user._id, chatId });
+        }
+
+        // Reset typing timeout
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+            setIsTyping(false);
+            socket.emit('typing-end', { toUserId: user._id, chatId });
+        }, 2000);
     };
 
-    onNewMessage(handleNewMessage);
-    onMessageSent(handleMessageSent);
+    const isOnline = onlineUsers?.has(user?._id) || user?.status === 'online';
 
-    return () => {
-      onNewMessage(null);
-      onMessageSent(null);
-    };
-  }, [socket, chatId, currentUserId, onNewMessage, onMessageSent, markAsRead]);
+    if (!isOpen) return null;
 
-  const loadChat = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await chatService.getPrivateChat(user._id);
-      const chatData = response.data;
-      setChatId(chatData.chatId);
-      
-      // Messages should already be in chronological order from backend
-      // Oldest first, newest last
-      const loadedMessages = chatData.messages || [];
-      setMessages(loadedMessages);
-      
-      // Mark unread messages as read
-      const unreadMessages = loadedMessages.filter(
-        msg => msg.senderId !== currentUserId && !msg.isRead
-      );
-      if (unreadMessages?.length > 0) {
-        await chatService.markAsRead(chatData.chatId, unreadMessages.map(m => m._id));
-        markAsRead(chatData.chatId, unreadMessages.map(m => m._id));
-      }
-      
-      // Scroll to bottom to show newest messages
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-    } catch (error) {
-      console.error('Error loading chat:', error);
-      
-      if (error.status === 403 || error.code === 'NOT_CONNECTED') {
-        setError('You can only chat with your connections. Please connect with this user first.');
-        setTimeout(() => {
-          onClose();
-        }, 3000);
-      } else {
-        setError(error.message || 'Failed to load chat. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div
+                onClick={onClose}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+            />
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || sending) return;
+            {/* Modal Container */}
+            <div className="relative bg-white w-full max-w-lg h-[600px] rounded-3xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col transform transition-all duration-300 scale-100 animate-in fade-in zoom-in-95 duration-200">
 
-    const messageText = newMessage.trim();
-    const tempId = Date.now().toString();
-    setNewMessage('');
-    setSending(true);
-    setError(null);
-
-    // Optimistic update - add to END of array (bottom)
-    const tempMessage = {
-      _id: tempId,
-      text: messageText,
-      sender: { firstName: 'You', lastName: '', _id: currentUserId },
-      senderId: currentUserId,
-      createdAt: new Date(),
-      isRead: false,
-      isTemp: true,
-      tempId
-    };
-    setMessages(prev => [...prev, tempMessage]);
-    scrollToBottom();
-
-    try {
-      const response = await chatService.sendMessage(chatId, messageText);
-      
-      if (socket && isConnected) {
-        sendMessage(user._id, messageText, tempId);
-      }
-      
-      // Replace temp message with real one
-      setMessages(prev => prev.map(msg => 
-        msg._id === tempId ? { ...response.data, isTemp: false } : msg
-      ));
-      scrollToBottom();
-    } catch (error) {
-      console.error('Error sending message:', error);
-      
-      if (error.status === 403 || error.code === 'NOT_CONNECTED') {
-        setError('You are no longer connected with this user.');
-        setTimeout(() => onClose(), 2000);
-      } else {
-        setError('Failed to send message. Please try again.');
-      }
-      
-      // Remove temp message on error
-      setMessages(prev => prev.filter(msg => msg._id !== tempId));
-    } finally {
-      setSending(false);
-      inputRef.current?.focus();
-    }
-  };
-
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-  };
-
-  const formatTime = (timestamp) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl w-full max-w-2xl h-[600px] flex flex-col shadow-2xl animate-slideUp">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-pink-600 rounded-t-2xl">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              {user?.photoUrl ? (
-                <img
-                  src={user.photoUrl}
-                  alt={user.firstName}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-              ) : (
-                <span className="text-white font-bold text-lg">
-                  {user?.firstName?.charAt(0).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div>
-              <h3 className="text-white font-semibold">
-                {user?.firstName} {user?.lastName}
-              </h3>
-              <p className="text-purple-200 text-xs">
-                {isConnected ? 'Online' : 'Offline'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-white hover:text-purple-200 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Error Banner */}
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-3 m-4 rounded">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Messages - Display in order (oldest top, newest bottom) */}
-        <div
-          ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 flex flex-col"
-        >
-          {loading ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <p className="text-gray-500">No messages yet</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Start the conversation with {user?.firstName}!
-              </p>
-            </div>
-          ) : (
-            <>
-              {messages.map((message, index) => {
-                const isOwn = message.senderId === currentUserId;
-                const showAvatar = !isOwn && (!messages[index - 1] || 
-                  messages[index - 1]?.senderId !== message.senderId);
-                
-                return (
-                  <div
-                    key={message._id || index}
-                    className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${
-                      message.isTemp ? 'opacity-70' : ''
-                    }`}
-                  >
-                    <div className={`max-w-[70%] ${isOwn ? 'order-1' : 'order-2'}`}>
-                      {!isOwn && showAvatar && message.sender && (
-                        <div className="flex items-center space-x-2 mb-1 ml-2">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
-                            {message.sender.firstName?.charAt(0).toUpperCase()}
-                          </div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            {message.sender.firstName}
-                          </p>
+                {/* Chat Header */}
+                <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-4 flex items-center justify-between shadow-lg">
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            {user.photoUrl ? (
+                                <img
+                                    src={user.photoUrl}
+                                    alt={`${user.firstName} ${user.lastName}`}
+                                    className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
+                                />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
+                                    {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                                </div>
+                            )}
+                            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-white ${isOnline ? 'bg-green-400' : 'bg-gray-400'}`} />
                         </div>
-                      )}
-                      <div
-                        className={`rounded-2xl px-4 py-2 ${
-                          isOwn
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                            : 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                        }`}
-                      >
-                        <p className="text-sm break-words whitespace-pre-wrap">
-                          {message.text}
-                        </p>
-                        <div className={`text-xs mt-1 flex items-center justify-end space-x-1 ${
-                          isOwn ? 'text-purple-200' : 'text-gray-400'
-                        }`}>
-                          <span>{formatTime(message.createdAt)}</span>
-                          {isOwn && message.readBy?.length > 0 && (
-                            <span title="Read">✓✓</span>
-                          )}
-                          {message.isTemp && (
-                            <span className="animate-pulse">sending...</span>
-                          )}
+
+                        <div>
+                            <h3 className="font-semibold text-lg leading-tight">
+                                {user.firstName} {user.lastName}
+                            </h3>
+                            <p className="text-xs text-white/80">
+                                {isOnline ? 'Active Now' : 'Offline'}
+                            </p>
                         </div>
-                      </div>
                     </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </>
-          )}
-        </div>
 
-        {/* Input */}
-        <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
-          <div className="flex items-end space-x-2">
-            <div className="flex-1">
-              <textarea
-                ref={inputRef}
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder={`Message ${user?.firstName}...`}
-                rows="1"
-                disabled={sending || !!error}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-gray-900 bg-white placeholder-gray-400"
-                style={{ minHeight: '44px', maxHeight: '120px' }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage(e);
-                  }
-                }}
-              />
+                    <button
+                        onClick={onClose}
+                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-white/90 hover:text-white"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Messages Body */}
+                <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50 flex flex-col gap-3">
+                    {loading ? (
+                        <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                            <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
+                            <p className="text-sm text-gray-500 font-medium">Securing message link...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+                            <span className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-3">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </span>
+                            <p className="text-sm text-gray-600 font-medium">{error}</p>
+                        </div>
+                    ) : messages.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                            <div className="w-16 h-16 bg-purple-50 text-purple-500 rounded-full flex items-center justify-center mb-4">
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                            </div>
+                            <h4 className="text-gray-800 font-semibold mb-1">Start a conversation</h4>
+                            <p className="text-xs text-gray-500">Say hello to {user.firstName}! Share profiles, discuss projects, or collaborate.</p>
+                        </div>
+                    ) : (
+                        messages.map((msg) => (
+                            <div
+                                key={msg._id}
+                                className={`flex flex-col max-w-[75%] ${msg.isOwn ? 'self-end items-end' : 'self-start items-start'}`}
+                            >
+                                <div
+                                    className={`px-4 py-2.5 rounded-2xl shadow-sm text-sm leading-relaxed ${msg.isOwn
+                                            ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-br-none'
+                                            : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'
+                                        }`}
+                                >
+                                    {msg.text}
+                                </div>
+
+                                <span className="text-[10px] text-gray-400 mt-1 px-1">
+                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {msg.isOwn && (
+                                        <span className="ml-1 text-purple-500 font-medium">
+                                            {msg.isTemp ? '•' : '✓'}
+                                        </span>
+                                    )}
+                                </span>
+                            </div>
+                        ))
+                    )}
+
+                    {/* Typing Indicator */}
+                    {otherUserTyping && (
+                        <div className="self-start flex flex-col items-start max-w-[75%]">
+                            <div className="bg-white text-gray-800 px-4 py-2.5 rounded-2xl rounded-bl-none border border-gray-100 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                        </div>
+                    )}
+
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input Footer */}
+                <div className="bg-white border-t border-gray-100 p-4">
+                    <form onSubmit={handleSend} className="flex gap-2.5 items-center">
+                        <input
+                            type="text"
+                            value={text}
+                            onChange={handleInputChange}
+                            disabled={loading || !!error}
+                            placeholder={`Message ${user.firstName || '...'}`}
+                            className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white focus:border-transparent transition-all disabled:opacity-50 text-black placeholder:text-gray-400"
+                        />
+
+                        <button
+                            type="submit"
+                            disabled={loading || !text.trim() || !!error}
+                            className="bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-2xl w-11 h-11 flex items-center justify-center hover:opacity-90 disabled:opacity-40 transition-opacity flex-shrink-0 shadow-md shadow-pink-500/10 cursor-pointer"
+                        >
+                            <svg className="w-5 h-5 transform rotate-90 -translate-x-[1px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19V5m0 0L5 12m7-7l7 7" />
+                            </svg>
+                        </button>
+                    </form>
+                </div>
             </div>
-            <button
-              type="submit"
-              disabled={!newMessage.trim() || sending || !!error}
-              className={`p-3 rounded-full transition-all duration-200 ${
-                newMessage.trim() && !sending && !error
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg transform hover:scale-105 active:scale-95'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+        </div>
+    );
 };
 
 export default ChatModal;

@@ -11,6 +11,18 @@ class ChatService {
       timeout: 10000
     });
 
+    // Add request interceptor to set Authorization header
+    this.api.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
     // Add response interceptor for error handling
     this.api.interceptors.response.use(
       response => response,
@@ -46,7 +58,7 @@ class ChatService {
       const response = await this.api.get(`/chats/${chatId}/messages`, {
         params: { page, limit }
       });
-      
+
       if (page === 1) {
         cache.set(cacheKey, response.data, 30000);
       }
@@ -67,17 +79,27 @@ class ChatService {
     }
   }
 
+  async createGroupChat(name, participantIds, avatar = null) {
+    try {
+      const response = await this.api.post('/chats/group', { name, participantIds, avatar });
+      cache.delete('chats');
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
   async sendMessage(chatId, text, replyTo = null) {
     try {
       const response = await this.api.post(`/chats/${chatId}/messages`, {
         text,
         replyTo
       });
-      
+
       // Invalidate messages cache for this chat
       cache.deletePattern(`messages_${chatId}`);
       cache.delete('chats');
-      
+
       return response.data;
     } catch (error) {
       throw this.handleError(error);

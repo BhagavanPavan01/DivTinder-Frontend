@@ -1,117 +1,90 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { chatService } from '../../services/chatService';
-import { useChat } from '../../context/ChatContext';
 
-const ChatList = ({ onSelectChat, selectedChatId }) => {
-  const [chats, setChats] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { isUserOnline } = useChat();
+const ChatList = ({ conversations: propConversations, activeChat, onSelectChat, currentUser, loading: propLoading }) => {
+  const [localConversations, setLocalConversations] = useState([]);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const isControlled = propConversations !== undefined;
+  const conversations = isControlled ? propConversations : localConversations;
+  const loading = isControlled ? propLoading : localLoading;
 
   useEffect(() => {
-    loadChats();
-  }, []);
+    if (isControlled) return;
+    let mounted = true;
+    (async () => {
+      setLocalLoading(true);
+      try {
+        const res = await chatService.getChats();
+        if (!mounted) return;
+        const data = res.data || res;
+        setLocalConversations(data || []);
+      } catch (err) {
+        console.error('ChatList: fetch chats failed', err);
+        setLocalConversations([]);
+      } finally {
+        setLocalLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [isControlled]);
 
-  const loadChats = async () => {
-    try {
-      const response = await chatService.getChats();
-      setChats(response.data || []);
-    } catch (error) {
-      console.error('Failed to load chats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const filtered = conversations.filter(c => {
+    if (!c.user) return false;
+    const q = searchTerm.toLowerCase();
+    return c.user.firstName.toLowerCase().includes(q) || (c.user.lastName || '').toLowerCase().includes(q);
+  });
 
-  const formatTime = (timestamp) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
-    if (days > 7) {
-      return date.toLocaleDateString();
-    } else if (days > 0) {
-      return `${days}d ago`;
-    } else {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+  if (loading) return (
+    <div className="h-full bg-white border-r border-gray-200 flex flex-col">
+      <div className="p-5 border-b border-gray-200 bg-gray-50">
+        <h2 className="text-2xl font-semibold text-gray-900">Chats</h2>
       </div>
-    );
-  }
+      <div className="flex-1 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-xl shadow-lg">
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-800">Messages</h2>
+    <div className="h-full bg-white border-r border-gray-200 flex flex-col">
+      <div className="p-5 border-b border-gray-200 bg-gray-50">
+        <h2 className="text-2xl font-semibold text-gray-900">Chats</h2>
+        <div className="mt-3 relative">
+          <input
+            type="text"
+            placeholder="Search chats..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
+        </div>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto">
-        {chats.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
+        {filtered.length === 0 ? (
+          <div className="text-center py-10 px-5">
             <p className="text-gray-500">No conversations yet</p>
-            <p className="text-sm text-gray-400 mt-1">Start chatting with your connections!</p>
           </div>
         ) : (
-          chats.map((chat) => (
+          filtered.map(conv => (
             <div
-              key={chat.chatId}
-              onClick={() => onSelectChat(chat)}
-              className={`p-4 cursor-pointer transition-all duration-200 border-l-4 ${
-                selectedChatId === chat.chatId
-                  ? 'border-purple-600 bg-purple-50'
-                  : 'border-transparent hover:bg-gray-50'
-              }`}
+              key={conv.chatId || conv._id}
+              onClick={() => onSelectChat(conv)}
+              className={`flex items-center p-3 cursor-pointer transition-colors border-b border-gray-100 ${activeChat?.chatId === conv.chatId ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
             >
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                    {chat.type === 'global' ? (
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    ) : (
-                      chat.user?.firstName?.charAt(0).toUpperCase() || '?'
-                    )}
-                  </div>
-                  {chat.type === 'private' && isUserOnline(chat.user?._id) && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                  )}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline">
-                    <h3 className="font-semibold text-gray-900 truncate">
-                      {chat.type === 'global' ? 'Global Chat' : `${chat.user?.firstName || 'User'} ${chat.user?.lastName || ''}`}
-                    </h3>
-                    {chat.lastMessage?.timestamp && (
-                      <span className="text-xs text-gray-400">
-                        {formatTime(chat.lastMessage.timestamp)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500 truncate mt-1">
-                    {chat.lastMessage?.text || 'No messages yet'}
-                  </p>
-                </div>
-                
-                {chat.unreadCount > 0 && (
-                  <div className="bg-purple-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {chat.unreadCount}
-                  </div>
-                )}
+              <div className="relative mr-4 flex-shrink-0">
+                <img src={conv.user?.photoUrl || '/default-avatar.png'} alt={conv.user?.firstName} className="w-12 h-12 rounded-full object-cover" onError={(e) => e.target.src = '/default-avatar.png'} />
+                <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${conv.user?.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></span>
               </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-baseline mb-1">
+                  <span className="font-semibold text-gray-900 truncate max-w-[180px]">{conv.user?.firstName} {conv.user?.lastName}</span>
+                </div>
+                <div className="text-sm text-gray-500 truncate">{conv.lastMessage?.text || 'No messages yet'}</div>
+              </div>
+              {conv.unreadCount > 0 && (<div className="ml-2 bg-green-500 text-white rounded-full min-w-[20px] h-5 flex items-center justify-center text-xs font-semibold px-1.5">{conv.unreadCount}</div>)}
             </div>
           ))
         )}

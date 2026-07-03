@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
@@ -7,135 +7,182 @@ const ChatContext = createContext();
 export const useChat = () => {
   const context = useContext(ChatContext);
   if (!context) {
-    throw new Error('useChat must be used within a ChatProvider');
+    throw new Error('useChat must be used within ChatProvider');
   }
   return context;
 };
 
 export const ChatProvider = ({ children }) => {
-  const [socket, setSocket] = useState(null);
-  const [onlineUsers, setOnlineUsers] = useState(new Map());
-  const [typingUsers, setTypingUsers] = useState({});
   const { user, token } = useAuth();
-  const socketRef = useRef(null);
+  const [socket, setSocket] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [activeChat, setActiveChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [typingUsers, setTypingUsers] = useState({});
+  const [isConnected, setIsConnected] = useState(false);
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   useEffect(() => {
-    if (!token || !user) {
-      console.log('No token or user, skipping socket connection');
-      return;
-    }
+    if (!token || !user) return;
 
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
-    
-    console.log('Connecting to socket...', SOCKET_URL);
-    
-    const newSocket = io(SOCKET_URL, {
+    const newSocket = io(API_URL, {
       auth: { token },
-      withCredentials: true,
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
-
-    socketRef.current = newSocket;
-    setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      console.log('✅ Socket connected successfully');
+      console.log('Socket connected');
+      setIsConnected(true);
     });
 
-    newSocket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error.message);
+    newSocket.on('disconnect', () => {
+      console.log('Socket disconnected');
+      setIsConnected(false);
     });
 
-    newSocket.on('user-online', ({ userId }) => {
-      console.log('User online:', userId);
-      setOnlineUsers(prev => new Map(prev).set(userId, true));
-    });
-
-    newSocket.on('user-offline', ({ userId }) => {
-      console.log('User offline:', userId);
-      setOnlineUsers(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(userId);
-        return newMap;
+    newSocket.on('newMessage', (message) => {
+      setMessages(prev => [...prev, message]);
+      
+      // Update conversation list with new message
+      setConversations(prevConversations => {
+        const updated = prevConversations.map(conv => {
+          if (conv._id === message.senderId || conv._id === message.receiverId) {
+            return {
+              ...conv,
+              lastMessage: message,
+              unreadCount: message.senderId !== user._id ? (conv.unreadCount || 0) + 1 : 0
+            };
+          }
+          return conv;
+        }).sort((a, b) => {
+          const aTime = a.lastMessage?.createdAt || 0;
+          const bTime = b.lastMessage?.createdAt || 0;
+          return new Date(bTime) - new Date(aTime);
+        });
+        return updated;
       });
     });
 
-    newSocket.on('user-typing', ({ fromUserId, chatId, isTyping }) => {
-      setTypingUsers(prev => ({
-        ...prev,
-        [`${chatId}_${fromUserId}`]: isTyping
-      }));
+    newSocket.on('typing', ({ userId, isTyping }) => {
+      setTypingUsers(prev => ({ ...prev, [userId]: isTyping }));
       setTimeout(() => {
-        setTypingUsers(prev => ({
-          ...prev,
-          [`${chatId}_${fromUserId}`]: false
-        }));
+        setTypingUsers(prev => ({ ...prev, [userId]: false }));
       }, 3000);
     });
 
+    newSocket.on('messageRead', ({ messageId, userId: readerId }) => {
+      setMessages(prev => prev.map(msg => 
+        msg._id === messageId && !msg.readBy?.includes(readerId)
+          ? { ...msg, readBy: [...(msg.readBy || []), readerId] }
+          : msg
+      ));
+    });
+
+    setSocket(newSocket);
+
     return () => {
-      if (newSocket) {
-        console.log('Disconnecting socket...');
-        newSocket.disconnect();
-      }
+      newSocket.close();
     };
   }, [token, user]);
 
-  const sendPrivateMessage = (toUserId, text, tempId) => {
-    if (socketRef.current) {
-      socketRef.current.emit('private-message', { toUserId, text, tempId });
+  const fetchConversations = async () => {
+    try {
+      const response = await fetch(`${API_URL}/chat/conversations`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setConversations(data);
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
     }
   };
 
-  const sendGlobalMessage = (text, tempId) => {
-    if (socketRef.current) {
-      socketRef.current.emit('global-message', { text, tempId });
+  const fetchMessages = async (userId) => {
+    try {
+      const response = await fetch(`${API_URL}/chat/messages/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data);
+        return data;
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
     }
   };
 
-  const sendTypingStart = (toUserId, chatId) => {
-    if (socketRef.current) {
-      socketRef.current.emit('typing-start', { toUserId, chatId });
+  const sendMessage = async (receiverId, text) => {
+    if (!socket || !isConnected) {
+      console.error('Socket not connected');
+      return;
+    }
+
+    const tempMessage = {
+      _id: `temp_${Date.now()}`,
+      senderId: user._id,
+      receiverId,
+      text,
+      createdAt: new Date().toISOString(),
+      readBy: []
+    };
+    
+    setMessages(prev => [...prev, tempMessage]);
+    
+    socket.emit('sendMessage', { receiverId, text });
+  };
+
+  const sendTyping = (receiverId, isTyping) => {
+    if (socket && isConnected) {
+      socket.emit('typing', { receiverId, isTyping });
     }
   };
 
-  const sendTypingEnd = (toUserId, chatId) => {
-    if (socketRef.current) {
-      socketRef.current.emit('typing-end', { toUserId, chatId });
-    }
-  };
-
-  const markMessagesRead = (chatId, messageIds) => {
-    if (socketRef.current) {
-      socketRef.current.emit('mark-read', { chatId, messageIds });
-    }
-  };
-
-  const joinPrivateChat = (otherUserId) => {
-    if (socketRef.current) {
-      socketRef.current.emit('join-private-chat', otherUserId);
-    }
-  };
-
-  const joinGlobalChat = () => {
-    if (socketRef.current) {
-      socketRef.current.emit('join-global-chat');
+  const markAsRead = async (messageId) => {
+    try {
+      await fetch(`${API_URL}/chat/mark-read/${messageId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (socket && isConnected) {
+        socket.emit('markRead', { messageId });
+      }
+    } catch (error) {
+      console.error('Error marking message as read:', error);
     }
   };
 
   const value = {
     socket,
-    onlineUsers,
+    conversations,
+    activeChat,
+    messages,
     typingUsers,
-    sendPrivateMessage,
-    sendGlobalMessage,
-    sendTypingStart,
-    sendTypingEnd,
-    markMessagesRead,
-    joinPrivateChat,
-    joinGlobalChat,
-    isUserOnline: (userId) => onlineUsers.get(userId) || false,
-    isTyping: (chatId, userId) => typingUsers[`${chatId}_${userId}`] || false
+    isConnected,
+    fetchConversations,
+    fetchMessages,
+    setActiveChat,
+    sendMessage,
+    sendTyping,
+    markAsRead
   };
 
   return (
