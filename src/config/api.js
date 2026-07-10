@@ -10,9 +10,9 @@ const isProd = import.meta.env.PROD;
 const defaultProdUrl = '/backend-api';
 const defaultDevUrl = ''; // Use Vite proxy ('' instead of localhost:3000) avoids CORS issues in dev
 
-const configuredApiBaseUrl = import.meta.env.VITE_API_URL || (isProd ? defaultProdUrl : defaultDevUrl);
-const configuredSocketBaseUrl = import.meta.env.VITE_SOCKET_URL || (isProd ? 'https://divtinder.onrender.com' : 'http://localhost:3000');
-const configuredChatApiUrl = import.meta.env.VITE_CHAT_API_URL || (isProd ? `${defaultProdUrl}/api` : `${defaultDevUrl}/api`);
+const configuredApiBaseUrl = isProd ? defaultProdUrl : (import.meta.env.VITE_API_URL || defaultDevUrl);
+const configuredSocketBaseUrl = isProd ? 'https://divtinder.onrender.com' : (import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000');
+const configuredChatApiUrl = isProd ? `${defaultProdUrl}/api` : (import.meta.env.VITE_CHAT_API_URL || `${defaultDevUrl}/api`);
 
 export const API_BASE_URL = normalizeBaseUrl(configuredApiBaseUrl);
 export const SOCKET_BASE_URL = normalizeBaseUrl(configuredSocketBaseUrl);
