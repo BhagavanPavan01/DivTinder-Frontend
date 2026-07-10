@@ -20,11 +20,13 @@ function App() {
       <SocketProvider>
         <BrowserRouter basename="/">
           <Routes>
+            {/* Auth routes - outside Body to hide Navbar/Footer */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+
             {/* Main routes with Body layout */}
             <Route path="/" element={<Body />}>
               <Route index element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/feed" element={<Feed />} />
               <Route path="/requests" element={<Requests />} />
