@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { chatService } from '../services/chatService';
+import { API_BASE_URL } from '../config/api';
 import ChatList from '../components/Chat/ChatList';
 import ChatWindow from '../components/Chat/ChatWindow';
 
@@ -15,7 +16,7 @@ const ChatPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(true);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = API_BASE_URL;
 
   // Fetch conversations on component mount
   useEffect(() => {

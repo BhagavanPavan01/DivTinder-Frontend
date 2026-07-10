@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { fetchProfileWithFallback, getApiErrorMessage, loginWithFallback, logoutWithFallback } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -19,9 +19,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/profile/view', {
-          withCredentials: true
-        });
+        const response = await fetchProfileWithFallback({ withCredentials: true });
         setUser(response.data);
         
         // Get token from cookies
@@ -53,16 +51,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (emailId, password) => {
     try {
-      const response = await axios.post('http://localhost:3000/login', {
-        emailId,
-        password
-      }, {
-        withCredentials: true
-      });
+      const response = await loginWithFallback(emailId, password, { withCredentials: true });
       
-      const profileResponse = await axios.get('http://localhost:3000/profile/view', {
-        withCredentials: true
-      });
+      const profileResponse = await fetchProfileWithFallback({ withCredentials: true });
       
       setUser(profileResponse.data);
       localStorage.setItem('user', JSON.stringify(profileResponse.data));
@@ -78,18 +69,16 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Login failed' 
+      return {
+        success: false,
+        error: getApiErrorMessage(error) || 'Login failed'
       };
     }
   };
 
   const logout = async () => {
     try {
-      await axios.post('http://localhost:3000/logout', {}, {
-        withCredentials: true
-      });
+      await logoutWithFallback({ withCredentials: true });
       setUser(null);
       setToken(null);
       localStorage.removeItem('user');

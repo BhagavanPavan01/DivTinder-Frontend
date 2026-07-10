@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
+import { SOCKET_BASE_URL } from '../config/api';
 
 export const useSocket = () => {
   const [socket, setSocket] = useState(null);
@@ -13,7 +14,7 @@ export const useSocket = () => {
   useEffect(() => {
     if (!token || !user) return;
 
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+    const SOCKET_URL = SOCKET_BASE_URL;
     
     const newSocket = io(SOCKET_URL, {
       auth: { token },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import UserProfileModal from './UserProfileModal';
+import { API_BASE_URL } from '../config/api';
 
 const Feed = () => {
   const [users, setUsers] = useState([]);
@@ -19,7 +20,7 @@ const Feed = () => {
       setLoading(true);
       setError('');
       
-      const response = await axios.get(`http://localhost:3000/feed?page=${page}&limit=${limit}`, {
+      const response = await axios.get(`${API_BASE_URL}/feed?page=${page}&limit=${limit}`, {
         withCredentials: true
       });
       
@@ -62,7 +63,7 @@ const Feed = () => {
       setRequestLoading(prev => ({ ...prev, [userId]: true }));
       
       const response = await axios.post(
-        `http://localhost:3000/request/send/${status}/${userId}`,
+        `${API_BASE_URL}/request/send/${status}/${userId}`,
         {},
         { withCredentials: true }
       );

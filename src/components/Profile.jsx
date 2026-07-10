@@ -2,6 +2,7 @@ import React from 'react'; // Add this if your config requires it
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { API_BASE_URL } from "../config/api";
 
 
 // Icons (you can use react-icons or any icon library)
@@ -143,7 +144,7 @@ const Profile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:3000/profile/view", {
+      const res = await axios.get(`${API_BASE_URL}/profile/view`, {
         withCredentials: true
       });
       setProfile(res.data);
@@ -231,7 +232,7 @@ const Profile = () => {
       });
       
       await axios.patch(
-        "http://localhost:3000/profile/edit",
+        `${API_BASE_URL}/profile/edit`,
         updateData,
         { withCredentials: true }
       );

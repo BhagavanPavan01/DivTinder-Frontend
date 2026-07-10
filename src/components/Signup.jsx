@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
+import { API_BASE_URL } from "../config/api";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -80,7 +81,7 @@ const Signup = () => {
 
     try {
       const res = await axios.post(
-        "http://localhost:3000/Signup",
+        `${API_BASE_URL}/Signup`,
         formData,
         { withCredentials: true }
       );

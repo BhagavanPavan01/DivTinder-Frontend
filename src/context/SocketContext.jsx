@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { API_BASE_URL } from '../config/api';
 
 const SocketContext = createContext();
 
@@ -19,7 +20,7 @@ export const SocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState(new Map());
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = API_BASE_URL;
 
   useEffect(() => {
     if (!token || !user) return;

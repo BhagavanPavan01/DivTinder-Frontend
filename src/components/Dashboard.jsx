@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Link } from 'react-router-dom';
 import ChatPage from "../pages/ChatPage"; // Import ChatPage instead
+import { API_BASE_URL } from "../config/api";
 
 // Create axios instance with baseURL
 const api = axios.create({
-  baseURL: "http://localhost:3000",
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
@@ -43,7 +44,7 @@ const Dashboard = () => {
   });
   const [error, setError] = useState("");
   const [lastLogin, setLastLogin] = useState(null);
-  
+
   // Chat state - for navigation only
   const [unreadChatsCount, setUnreadChatsCount] = useState(0);
 
@@ -62,7 +63,7 @@ const Dashboard = () => {
 
   const fetchUnreadChatsCount = async () => {
     try {
-      const response = await api.get("/chats");
+      const response = await api.get("/api/chats");
       if (response.data.success) {
         const unreadCount = response.data.data.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0);
         setUnreadChatsCount(unreadCount);
@@ -332,7 +333,7 @@ const Dashboard = () => {
                 </span>
               )}
             </button>
-            
+
             {/* Requests Button */}
             <button
               onClick={() => navigate("/requests")}

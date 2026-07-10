@@ -1,7 +1,7 @@
 // components/Login.jsx
-import axios from "axios";
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const [emailId, setEmailId] = useState("");
@@ -9,26 +9,25 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async () => {
     setLoading(true);
     setError("");
-    
+
     try {
-      const res = await axios.post(
-        "http://localhost:3000/login",
-        { emailId, password },
-        { withCredentials: true }
-      );
-      
-      console.log("Login successful:", res);
-      
-      // Redirect to dashboard after successful login
-      navigate("/dashboard");
-      
+      const result = await login(emailId, password);
+
+      if (result.success) {
+        console.log("Login successful");
+        // Redirect to dashboard after successful login
+        navigate("/dashboard");
+      } else {
+        setError(result.error || "Login failed. Please try again.");
+      }
     } catch (err) {
-      console.error("Backend says:", err.response?.data);
-      setError(err.response?.data?.message || "Login failed. Please try again.");
+      console.error("Login encountered an error:", err);
+      setError("Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -99,10 +98,9 @@ const Login = () => {
               </Link>
             </div>
 
-            <button 
-              className={`w-full py-3 rounded-xl bg-white text-pink-600 font-bold text-lg hover:bg-yellow-300 hover:text-black transition-all duration-300 transform hover:scale-105 ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+            <button
+              className={`w-full py-3 rounded-xl bg-white text-pink-600 font-bold text-lg hover:bg-yellow-300 hover:text-black transition-all duration-300 transform hover:scale-105 ${loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               onClick={handleLogin}
               disabled={loading}
             >

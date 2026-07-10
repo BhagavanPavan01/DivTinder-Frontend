@@ -1,40 +1,85 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
-const ChatInput = ({ activeChat, onSendMessage, onSendTyping, isConnected }) => {
+const ChatInput = ({ chatId, receiverId, onSendMessage, onSendTyping, isConnected }) => {
   const [text, setText] = useState('');
-  const typingRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
-  const send = async (e) => {
+  // Debounced typing indicator – stops sending after 2s of inactivity
+  const handleTyping = useCallback(
+    (isTyping) => {
+      if (!receiverId || !isConnected) return;
+      onSendTyping(chatId, receiverId, isTyping);
+    },
+    [chatId, receiverId, onSendTyping, isConnected]
+  );
+
+  const onTextChange = (e) => {
+    const newText = e.target.value;
+    setText(newText);
+
+    // Notify typing start
+    if (newText.length > 0 && !typingTimeoutRef.current) {
+      handleTyping(true);
+    }
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set a timeout to stop typing after 2 seconds of no input
+    typingTimeoutRef.current = setTimeout(() => {
+      handleTyping(false);
+      typingTimeoutRef.current = null;
+    }, 2000);
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
-    const t = text.trim();
-    setText('');
-    try {
-      await onSendMessage(activeChat.chatId, t, activeChat.user?._id);
-    } catch (err) {
-      console.error('Send failed', err);
-      setText(t);
+    if (!receiverId) {
+      console.warn('No receiverId – cannot send message');
+      return;
     }
+    onSendMessage(chatId, text.trim(), receiverId);
+    setText('');
+    // Stop typing after sending
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    handleTyping(false);
   };
 
-  const handleChange = (e) => {
-    setText(e.target.value);
-    if (!activeChat || !onSendTyping) return;
-    if (typingRef.current) clearTimeout(typingRef.current);
-    onSendTyping(activeChat.chatId, activeChat.user?._id, true);
-    typingRef.current = setTimeout(() => {
-      onSendTyping(activeChat.chatId, activeChat.user?._id, false);
-    }, 1000);
-  };
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        handleTyping(false);
+      }
+    };
+  }, [handleTyping]);
 
   return (
-    <form onSubmit={send} className="bg-white border-t border-gray-200 p-4">
-      <div className="flex gap-3">
-        <input value={text} onChange={handleChange} disabled={!activeChat} placeholder={!activeChat ? 'Select a chat' : `Message ${activeChat.user?.firstName || '...' }`} className="flex-1 px-4 py-2 border border-gray-300 rounded-full" />
-        <button type="submit" disabled={!text.trim() || !activeChat} className="bg-green-500 text-white rounded-full w-10 h-10 flex items-center justify-center">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M2 21L21 12L2 3V10L15 12L2 14V21Z" fill="currentColor"/></svg>
-        </button>
-      </div>
+    <form onSubmit={handleSubmit} className="border-t border-gray-200 p-3 bg-white flex items-end space-x-2">
+      <input
+        type="text"
+        value={text}
+        onChange={onTextChange}
+        placeholder={isConnected ? 'Type a message...' : 'Connecting...'}
+        disabled={!isConnected}
+        className="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+      <button
+        type="submit"
+        disabled={!text.trim() || !isConnected}
+        className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full p-2 px-4 transition-colors"
+      >
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+        </svg>
+      </button>
     </form>
   );
 };

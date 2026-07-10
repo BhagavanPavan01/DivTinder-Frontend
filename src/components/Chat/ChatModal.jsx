@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { chatService } from '../../services/chatService';
+import { API_BASE_URL } from '../../config/api';
 
 const ChatModal = ({ isOpen, onClose, user, currentUserId }) => {
     const { token } = useAuth();
@@ -52,7 +53,7 @@ const ChatModal = ({ isOpen, onClose, user, currentUserId }) => {
                     messagesData = res.data?.messages || res.messages || res.data || res;
                 } catch (err) {
                     console.warn('chatService.getMessages fallback initiated', err);
-                    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                    const API_URL = API_BASE_URL;
                     const response = await fetch(`${API_URL}/api/chats/${activeChatId}?page=1&limit=100`, {
                         headers: {
                             'Authorization': `Bearer ${localStorage.getItem('token') || token}`,

@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { cache } from '../utils/cache';
+import { CHAT_API_BASE_URL } from '../config/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = CHAT_API_BASE_URL;
 
 class ChatService {
   constructor() {

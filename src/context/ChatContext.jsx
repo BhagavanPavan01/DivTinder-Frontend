@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { API_BASE_URL } from '../config/api';
 
 const ChatContext = createContext();
 
@@ -21,7 +22,7 @@ export const ChatProvider = ({ children }) => {
   const [typingUsers, setTypingUsers] = useState({});
   const [isConnected, setIsConnected] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = API_BASE_URL;
 
   useEffect(() => {
     if (!token || !user) return;

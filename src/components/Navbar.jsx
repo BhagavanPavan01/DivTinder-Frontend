@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import Profile from "./Profile";
+import { API_BASE_URL } from "../config/api";
 import Feed from "./Feed";
 import Connections from "./Connections";
 
@@ -21,7 +22,7 @@ const Navbar = () => {
 
   const checkAuthStatus = async () => {
     try {
-      const res = await axios.get("http://localhost:3000/profile/view", {
+      const res = await axios.get(`${API_BASE_URL}/profile/view`, {
         withCredentials: true,
       });
       setIsLoggedIn(true);
@@ -37,7 +38,7 @@ const Navbar = () => {
   const handleLogout = async () => {
     try {
       await axios.post(
-        "http://localhost:3000/logout",
+        `${API_BASE_URL}/logout`,
         {},
         { withCredentials: true }
       );

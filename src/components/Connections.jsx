@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import ChatModal from './Chat/ChatModal';
+import { API_BASE_URL } from '../config/api';
 
 const Connections = () => {
   const [connections, setConnections] = useState([]);
@@ -17,7 +18,7 @@ const Connections = () => {
   const [currentUser, setCurrentUser] = useState(null);
 
   const api = axios.create({
-    baseURL: 'http://localhost:3000',
+    baseURL: API_BASE_URL,
     withCredentials: true
   });
 
