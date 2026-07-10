@@ -6,11 +6,12 @@ const normalizeBaseUrl = (value) => {
 };
 
 const isProd = import.meta.env.PROD;
-const defaultProdUrl = 'https://divtinder.onrender.com';
+// We route production calls through the Netlify proxy to prevent CORS network errors!
+const defaultProdUrl = '/backend-api';
 const defaultDevUrl = ''; // Use Vite proxy ('' instead of localhost:3000) avoids CORS issues in dev
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_URL || (isProd ? defaultProdUrl : defaultDevUrl);
-const configuredSocketBaseUrl = import.meta.env.VITE_SOCKET_URL || (isProd ? defaultProdUrl : 'http://localhost:3000');
+const configuredSocketBaseUrl = import.meta.env.VITE_SOCKET_URL || (isProd ? 'https://divtinder.onrender.com' : 'http://localhost:3000');
 const configuredChatApiUrl = import.meta.env.VITE_CHAT_API_URL || (isProd ? `${defaultProdUrl}/api` : `${defaultDevUrl}/api`);
 
 export const API_BASE_URL = normalizeBaseUrl(configuredApiBaseUrl);
