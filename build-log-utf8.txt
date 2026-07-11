@@ -1,0 +1,96 @@
+﻿[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+/*! ≡ƒî╝ daisyUI 5.5.18 */
+node.exe : Found 1 warning 
+while optimizing generated 
+CSS:
+At C:\Program 
+Files\nodejs\npx.ps1:29 
+char:3
++   & $NODE_EXE $NPX_CLI_JS 
+$args
++   ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo          
+    : NotSpecified: (Found  
+   1 warning... generated   
+  CSS::String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+
+[2mΓöé }[22m
+[2mΓöé @layer base {[22m
+[2mΓöé[22m   @property 
+--radialprogress {
+[2mΓöå[22m            
+[33m[2m^--[22m Unknown 
+at rule: @property[39m
+[2mΓöå[22m
+[2mΓöé     syntax: 
+"<percentage>";[22m
+[2mΓöé     inherits: 
+true;[22m
+
+[32mΓ£ô[39m 44 modules transformed.
+[31mΓ£ù[39m Build failed 
+in 699ms
+[31merror during build:
+[31m[vite]: Rollup failed 
+to resolve import 
+"react-icons/hi" from "E:/co
+dings/divTinder-frontend/src
+/components/Navbar.jsx".
+This is most likely 
+unintended because it can 
+break your application at 
+runtime.
+If you do want to 
+externalize this module 
+explicitly add it to
+`build.rollupOptions.externa
+l`[31m
+    at viteLog (file:///E:/c
+odings/divTinder-frontend/no
+de_modules/vite/dist/node/ch
+unks/config.js:33635:57)
+    at file:///E:/codings/di
+vTinder-frontend/node_module
+s/vite/dist/node/chunks/conf
+ig.js:33669:73
+    at onwarn (file:///E:/co
+dings/divTinder-frontend/nod
+e_modules/@vitejs/plugin-rea
+ct/dist/index.js:76:7)
+    at file:///E:/codings/di
+vTinder-frontend/node_module
+s/vite/dist/node/chunks/conf
+ig.js:33669:28
+    at onRollupLog (file:///
+E:/codings/divTinder-fronten
+d/node_modules/vite/dist/nod
+e/chunks/config.js:33664:63)
+    at onLog (file:///E:/cod
+ings/divTinder-frontend/node
+_modules/vite/dist/node/chun
+ks/config.js:33467:4)
+    at file:///E:/codings/di
+vTinder-frontend/node_module
+s/rollup/dist/es/shared/node
+-entry.js:20958:32
+    at Object.logger [as 
+onLog] (file:///E:/codings/d
+ivTinder-frontend/node_modul
+es/rollup/dist/es/shared/nod
+e-entry.js:22945:9)
+    at ModuleLoader.handleIn
+validResolvedId (file:///E:/
+codings/divTinder-frontend/n
+ode_modules/rollup/dist/es/s
+hared/node-entry.js:21689:26
+)
+    at file:///E:/codings/di
+vTinder-frontend/node_module
+s/rollup/dist/es/shared/node
+-entry.js:21647:26[39m

@@ -94,8 +94,13 @@ const Chat = () => {
     }
   };
 
-  const sendMessage = async (chatId, text, receiverId) => {
+  const sendMessage = async (chatId, text, receiverId, replyToMsg) => {
     if (!text?.trim()) return;
+
+    const replyToData = replyToMsg ? {
+      _id: replyToMsg._id,
+      text: replyToMsg.text,
+    } : null;
 
     const tempMessage = {
       _id: `tmp_${Date.now()}`,
@@ -104,6 +109,8 @@ const Chat = () => {
       createdAt: new Date().toISOString(),
       isOwn: true,
       pending: true,
+      replyTo: replyToMsg ? replyToMsg._id : null,
+      replyToText: replyToMsg ? replyToMsg.text : null,
     };
 
     setMessages((prev) => [...prev, tempMessage]);
@@ -114,9 +121,10 @@ const Chat = () => {
           toUserId: receiverId,
           text: text.trim(),
           chatId,
+          replyTo: replyToMsg ? replyToMsg._id : null,
         });
       } else {
-        await chatService.sendMessage(chatId, text.trim());
+        await chatService.sendMessage(chatId, text.trim(), replyToMsg ? replyToMsg._id : null);
       }
       setMessages((prev) =>
         prev.map((m) =>
@@ -143,6 +151,18 @@ const Chat = () => {
     setMessages([]);
   };
 
+  const deleteMessage = async (messageId) => {
+    if (!activeChat) return;
+    try {
+      await chatService.deleteMessage(activeChat.chatId, messageId);
+      setMessages(prev => prev.map(msg =>
+        msg._id === messageId ? { ...msg, isDeleted: true, text: 'This message was deleted' } : msg
+      ));
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+    }
+  };
+
   return (
     <div className="flex h-full bg-white rounded-lg shadow-lg overflow-hidden">
       <div className="w-1/3 border-r border-gray-200 min-w-[280px]">
@@ -165,6 +185,7 @@ const Chat = () => {
           isConnected={isConnected}
           onBack={handleBack}
           typingUsers={typingUsers}
+          onDeleteMessage={deleteMessage}
         />
       </div>
     </div>

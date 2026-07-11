@@ -4,7 +4,7 @@ const ChatInfoDrawer = ({ isOpen, onClose, chat, currentUser }) => {
     if (!isOpen || !chat) return null;
 
     const isGroup = chat.type === 'group';
-    const otherUser = chat.user;
+    const otherUser = isGroup ? null : (chat.user || chat.participants?.find((p) => p._id !== currentUser?._id));
 
     return (
         <div className={`fixed inset-y-0 right-0 z-40 w-80 bg-white border-l border-gray-200 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>

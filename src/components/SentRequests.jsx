@@ -31,7 +31,7 @@ const SentRequests = () => {
   const [showModal, setShowModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,7 +59,7 @@ const SentRequests = () => {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
-    
+
     if (seconds < 60) return 'just now';
     if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
@@ -105,7 +105,7 @@ const SentRequests = () => {
         <div className="text-center bg-white p-8 rounded-2xl shadow-xl">
           <div className="text-red-500 text-5xl mb-4">😕</div>
           <p className="text-xl text-gray-800 mb-4">{error}</p>
-          <button 
+          <button
             onClick={fetchSentRequests}
             className="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition"
           >
@@ -120,7 +120,7 @@ const SentRequests = () => {
     <>
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 pt-20 pb-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          
+
           {/* Header */}
           <div className="mb-8 flex items-center justify-between">
             <div>
@@ -155,15 +155,15 @@ const SentRequests = () => {
               {requests.map((request) => {
                 const user = request.recipient;
                 const fullName = getFullName(user?.firstName, user?.lastName);
-                
+
                 return (
                   <div
                     key={request._id}
                     onClick={() => handleCardClick(request)}
                     className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-1"
                   >
-                    <div className="p-6">
-                      <div className="flex items-start gap-6">
+                    <div className="p-4 sm:p-6">
+                      <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
                         {/* Avatar */}
                         <div className="flex-shrink-0">
                           {user?.photoUrl ? (
@@ -171,12 +171,12 @@ const SentRequests = () => {
                               src={user.photoUrl}
                               alt={fullName}
                               onClick={(e) => handlePhotoClick(user.photoUrl, e)}
-                              className="w-16 h-16 rounded-full object-cover border-4 border-gray-100 cursor-pointer hover:opacity-90 transition-opacity hover:scale-105"
+                              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-gray-100 cursor-pointer hover:opacity-90 transition-opacity hover:scale-105"
                             />
                           ) : (
-                            <div 
+                            <div
                               onClick={(e) => e.stopPropagation()}
-                              className="w-16 h-16 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl border-4 border-gray-100"
+                              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl sm:text-3xl border-4 border-gray-100"
                             >
                               {getInitials(user?.firstName, user?.lastName)}
                             </div>
@@ -184,20 +184,20 @@ const SentRequests = () => {
                         </div>
 
                         {/* User Info */}
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between">
-                            <div>
+                        <div className="flex-1 w-full text-center md:text-left">
+                          <div className="flex flex-col md:flex-row items-center md:items-start justify-between w-full">
+                            <div className="w-full md:w-auto">
                               <h2 className="text-xl font-bold text-gray-800 hover:text-pink-600 transition-colors">
                                 {fullName}
                               </h2>
-                              <p className="text-gray-500 flex items-center gap-1 mt-1">
+                              <p className="text-gray-500 flex items-center justify-center md:justify-start gap-1 mt-1">
                                 <span>📧</span>
                                 {user?.emailId || user?.email}
                               </p>
-                              
+
                               {/* Skills Preview */}
                               {user?.skills && user.skills.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-2">
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-2">
                                   {user.skills.slice(0, 3).map((skill, idx) => (
                                     <span
                                       key={idx}
@@ -213,9 +213,9 @@ const SentRequests = () => {
                                   )}
                                 </div>
                               )}
-                              
+
                               {/* Status Badge */}
-                              <div className="flex items-center gap-2 mt-3">
+                              <div className="flex items-center justify-center md:justify-start gap-2 mt-3">
                                 <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full flex items-center gap-1">
                                   <span>⏳</span>
                                   Pending
@@ -225,15 +225,12 @@ const SentRequests = () => {
                                 </span>
                               </div>
                             </div>
-                            
-                            {/* Message Button */}
-                            <Link
-                              to={`/chat/${user?._id}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 transition shadow-md text-sm font-medium"
-                            >
-                              Send Message
-                            </Link>
+
+                            {/* Connection Status Notice */}
+                            <div className="mt-4 md:mt-0 px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg shadow-sm text-sm font-medium flex items-center justify-center gap-2 w-full md:w-auto">
+                              <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              Awaiting Response
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -248,11 +245,11 @@ const SentRequests = () => {
 
       {/* User Info Modal */}
       {showModal && selectedUser && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
           onClick={() => setShowModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -401,19 +398,15 @@ const SentRequests = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-6 flex gap-3">
-                <Link
-                  to={`/chat/${selectedUser._id}`}
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 text-white py-3 rounded-xl text-center font-medium hover:from-pink-700 hover:to-purple-700 transition-all duration-200 shadow-md"
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 bg-gradient-to-r from-gray-50 to-gray-100 text-gray-600 py-3 rounded-xl text-center font-medium shadow-inner border border-gray-200">
+                  <span className="flex items-center justify-center gap-2 text-sm">
+                    <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    Send Message
+                    Chat will unlock when they accept your request.
                   </span>
-                </Link>
+                </div>
                 <button
                   onClick={() => setShowModal(false)}
                   className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-300 transition-all duration-200"
@@ -428,7 +421,7 @@ const SentRequests = () => {
 
       {/* Photo Modal */}
       {showPhotoModal && selectedPhoto && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
           onClick={() => setShowPhotoModal(false)}
         >

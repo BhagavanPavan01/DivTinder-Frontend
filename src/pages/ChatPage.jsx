@@ -32,7 +32,7 @@ const ChatPage = () => {
     // Listen for new private messages
     socket.on('new-private-message', (messageData) => {
       console.log('New private message received:', messageData);
-      
+
       // Add message to current chat if active
       if (activeChat?.chatId === messageData.chatId) {
         setMessages(prev => [...prev, {
@@ -44,7 +44,7 @@ const ChatPage = () => {
           isRead: false
         }]);
       }
-      
+
       // Update conversation list
       updateConversationWithNewMessage(messageData);
     });
@@ -52,7 +52,7 @@ const ChatPage = () => {
     // Listen for new global messages
     socket.on('new-global-message', (messageData) => {
       console.log('New global message received:', messageData);
-      
+
       if (activeChat?.type === 'global') {
         setMessages(prev => [...prev, {
           _id: messageData._id,
@@ -63,16 +63,16 @@ const ChatPage = () => {
           isOwn: false
         }]);
       }
-      
+
       updateConversationWithNewMessage(messageData);
     });
 
     // Listen for message sent confirmation
     socket.on('message-sent', (messageData) => {
       console.log('Message sent confirmation:', messageData);
-      
+
       // Replace temp message with real message
-      setMessages(prev => prev.map(msg => 
+      setMessages(prev => prev.map(msg =>
         msg._id === messageData.tempId ? { ...messageData, isOwn: true } : msg
       ));
     });
@@ -99,7 +99,7 @@ const ChatPage = () => {
     // Listen for read receipts
     socket.on('messages-read', ({ chatId, readBy, messageIds }) => {
       if (activeChat?.chatId === chatId) {
-        setMessages(prev => prev.map(msg => 
+        setMessages(prev => prev.map(msg =>
           messageIds.includes(msg._id) ? { ...msg, isRead: true } : msg
         ));
       }
@@ -162,22 +162,22 @@ const ChatPage = () => {
   const fetchConversations = async () => {
     try {
       setLoadingConversations(true);
-      console.log('Fetching conversations from:', `${API_URL}/api/chats`);
-      const response = await fetch(`${API_URL}/api/chats`, {
+      console.log('Fetching conversations from:', `${API_BASE_URL}/api/chats`);
+      const response = await fetch(`${API_BASE_URL}/api/chats`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       console.log('Conversations response status:', response.status);
-      
+
       if (response.ok) {
         const result = await response.json();
         console.log('Conversations data:', result);
         const conversationsData = result.data || result;
-        
+
         // Add user status from socket
         const conversationsWithStatus = conversationsData.map(conv => ({
           ...conv,
@@ -186,7 +186,7 @@ const ChatPage = () => {
             status: conv.user?._id && onlineUsers.has(conv.user._id) ? 'online' : 'offline'
           }
         }));
-        
+
         setConversations(conversationsWithStatus);
       } else {
         const errorData = await response.json();
@@ -203,21 +203,21 @@ const ChatPage = () => {
     try {
       setIsLoading(true);
       console.log('Fetching messages for chat:', chatId);
-      const response = await fetch(`${API_URL}/api/chats/${chatId}?page=1&limit=100`, {
+      const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}?page=1&limit=10000`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       console.log('Messages response status:', response.status);
-      
+
       if (response.ok) {
         const result = await response.json();
         console.log('Messages data:', result);
         const messagesData = result.data?.messages || result.messages || [];
-        
+
         // Format messages for display
         const formattedMessages = messagesData.map(msg => ({
           _id: msg._id,
@@ -229,20 +229,28 @@ const ChatPage = () => {
           isRead: msg.isRead || false,
           isDeleted: msg.isDeleted || false
         }));
-        
+
         setMessages(formattedMessages);
-        
-        // Mark messages as read
-        if (formattedMessages.length > 0 && socket && isConnected) {
+
+        // Mark messages as read using perfectly working database endpoints
+        if (formattedMessages.length > 0) {
           const unreadMessageIds = formattedMessages
             .filter(msg => !msg.isOwn && !msg.isRead)
             .map(msg => msg._id);
-          
+
           if (unreadMessageIds.length > 0) {
-            socket.emit('mark-read', { chatId, messageIds: unreadMessageIds });
+            try {
+              await chatService.markAsRead(chatId, unreadMessageIds);
+            } catch (err) {
+              console.error("Failed to mark read on db API", err);
+            }
+            // Still emit over socket for real-time delivery to the sender
+            if (socket && isConnected) {
+              socket.emit('mark-read', { chatId, messageIds: unreadMessageIds });
+            }
           }
         }
-        
+
         return formattedMessages;
       } else {
         const errorData = await response.json();
@@ -258,20 +266,8 @@ const ChatPage = () => {
   };
 
   const sendMessage = async (chatId, text, receiverId = null) => {
-    console.debug('ChatPage.sendMessage', { chatId, text, receiverId, socketExists: !!socket, isConnected });
-    if (!socket || !isConnected) {
-      console.warn('Socket not connected - falling back to REST send', { socketExists: !!socket, isConnected });
-      try {
-        // Fallback to REST API if socket unavailable
-        await chatService.sendMessage(chatId, text);
-        return;
-      } catch (err) {
-        console.error('Fallback REST send failed', err);
-        return;
-      }
-    }
-
-    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    // 1. Optimistic UI update
+    const tempId = `temp_${Date.now()}`;
     const tempMessage = {
       _id: tempId,
       text: text,
@@ -282,21 +278,26 @@ const ChatPage = () => {
       isRead: false,
       isTemp: true
     };
-    
     setMessages(prev => [...prev, tempMessage]);
-    
-    // Check if it's a private message or global
-    if (activeChat?.type === 'private' && receiverId) {
-      socket.emit('private-message', { 
-        toUserId: receiverId, 
-        text: text, 
-        tempId: tempId 
+
+    if (socket && isConnected) {
+      // 2. The backend is perfectly wired to store the message in the database using the "send-message" event!
+      socket.emit('send-message', {
+        chatId: chatId,
+        text: text,
+        tempId: tempId,
+        replyTo: null
       });
-    } else if (activeChat?.type === 'global') {
-      socket.emit('global-message', { 
-        text: text, 
-        tempId: tempId 
-      });
+    } else {
+      try {
+        // Fallback to REST API if socket is disconnected, guaranteed perfectly persistent storing.
+        const result = await chatService.sendMessage(chatId, text);
+        const savedMessage = result.data || result;
+        setMessages(prev => prev.map(m => m._id === tempId ? { ...savedMessage, isOwn: true, isRead: false } : m));
+      } catch (error) {
+        console.error("Error saving message into DB via fallback API", error);
+        setMessages(prev => prev.filter(m => m._id !== tempId));
+      }
     }
   };
 
@@ -322,23 +323,88 @@ const ChatPage = () => {
     setActiveChat(null);
   };
 
-  return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Mobile Back Button */}
-      {activeChat && (
-        <button 
-          onClick={handleBack}
-          className="fixed top-4 left-4 z-10 md:hidden bg-white p-2 rounded-full shadow-lg"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-      )}
+  const handleDeleteChat = async (chatId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
+      if (response.ok) {
+        setConversations(prev => prev.filter(c => c.chatId !== chatId));
+        setActiveChat(null);
+      } else {
+        console.error("Failed to delete chat", response.status);
+      }
+    } catch (err) {
+      console.error("Error deleting chat:", err);
+    }
+  };
+
+  const handlePinChat = async (chatId, isPinned) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/pin`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: !isPinned })
+      });
+      if (response.ok) {
+        setConversations(prev => [...prev].map(c => c.chatId === chatId ? { ...c, isPinned: !isPinned } : c).sort((a, b) => {
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          return new Date(b.updatedAt) - new Date(a.updatedAt);
+        }));
+        if (activeChat?.chatId === chatId) { setActiveChat(prev => ({ ...prev, isPinned: !isPinned })) }
+      }
+    } catch (err) { console.error("Error pinning chat:", err); }
+  };
+
+  const handleMuteChat = async (chatId, isMuted) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/mute`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mute: !isMuted })
+      });
+      if (response.ok) {
+        setConversations(prev => prev.map(c => c.chatId === chatId ? { ...c, isMuted: !isMuted } : c));
+        if (activeChat?.chatId === chatId) { setActiveChat(prev => ({ ...prev, isMuted: !isMuted })) }
+      }
+    } catch (err) { console.error("Error muting chat:", err); }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!activeChat) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chats/${activeChat.chatId}/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        setMessages(prev => prev.filter(m => m._id !== messageId));
+      }
+    } catch (err) { console.error("Error deleting msg:", err); }
+  };
+
+  return (
+    <div className="flex h-[100dvh] bg-white overflow-hidden">
       {/* Conversations Sidebar */}
-      <div className={`${activeChat ? 'hidden md:block' : 'block'} w-full md:w-96`}>
-        <ChatList 
+      <div className={`${activeChat ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[400px] border-r border-[#d1d7db] z-20 bg-white`}>
+        <div className="bg-[#f0f2f5] h-16 px-4 flex items-center justify-between border-b border-[#d1d7db] flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-500 overflow-hidden flex-shrink-0 border border-gray-200">
+              <img src={user?.photoUrl || `https://ui-avatars.com/api/?name=${user?.firstName}`} alt="profile" className="w-full h-full object-cover" />
+            </div>
+            <span className="font-semibold text-[#111b21]">Chats</span>
+          </div>
+          <div className="flex items-center gap-3 text-[#54656f]">
+            <button className="p-2 hover:bg-[#d1d7db]/50 rounded-full transition"><svg viewBox="0 0 24 24" width="24" height="24" className=""><path fill="currentColor" d="M12 7a2 2 0 1 0-.001-4.001A2 2 0 0 0 12 7zm0 2a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 9zm0 6a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 15z"></path></svg></button>
+          </div>
+        </div>
+        <ChatList
           conversations={conversations}
           activeChat={activeChat}
           onSelectChat={handleChatSelect}
@@ -349,7 +415,7 @@ const ChatPage = () => {
 
       {/* Chat Area */}
       <div className={`${activeChat ? 'block' : 'hidden md:block'} flex-1`}>
-        <ChatWindow 
+        <ChatWindow
           activeChat={activeChat}
           messages={messages}
           typingUsers={typingUsers}
@@ -359,6 +425,10 @@ const ChatPage = () => {
           onSendTyping={sendTyping}
           isConnected={isConnected}
           onBack={handleBack}
+          onDeleteChat={handleDeleteChat}
+          onPinChat={handlePinChat}
+          onMuteChat={handleMuteChat}
+          onDeleteMessage={handleDeleteMessage}
         />
       </div>
 

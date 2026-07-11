@@ -179,10 +179,11 @@ const ChatModal = ({ isOpen, onClose, user, currentUserId }) => {
         setMessages((prev) => [...prev, tempMessage]);
 
         if (socket && isConnected) {
-            socket.emit('private-message', {
-                toUserId: user._id,
+            socket.emit('send-message', {
+                chatId: chatId,
                 text: currentText,
-                tempId
+                tempId: tempId,
+                replyTo: null
             });
         } else {
             console.warn('Socket unavailable. Executing fallback HTTP message post.');
@@ -304,11 +305,26 @@ const ChatModal = ({ isOpen, onClose, user, currentUserId }) => {
                             >
                                 <div
                                     className={`px-4 py-2.5 rounded-2xl shadow-sm text-sm leading-relaxed ${msg.isOwn
-                                            ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-br-none'
-                                            : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'
+                                        ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-br-none'
+                                        : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'
                                         }`}
                                 >
-                                    {msg.text}
+                                    {msg.isDeleted ? (
+                                        <p className="italic opacity-80 flex items-center gap-1">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                            This message was deleted
+                                        </p>
+                                    ) : (
+                                        <>
+                                            {msg.replyTo && (
+                                                <div className={`border-l-4 rounded p-1.5 mb-1 mt-0.5 text-xs ${msg.isOwn ? 'bg-white/20 border-white text-white/90' : 'bg-black/5 border-purple-500 text-gray-700'}`}>
+                                                    <span className={`font-semibold block mb-0.5 ${msg.isOwn ? 'text-white' : 'text-purple-600'}`}>Replied message</span>
+                                                    {msg.replyToText || 'Original message'}
+                                                </div>
+                                            )}
+                                            <p className="whitespace-pre-wrap">{msg.text}</p>
+                                        </>
+                                    )}
                                 </div>
 
                                 <span className="text-[10px] text-gray-400 mt-1 px-1">

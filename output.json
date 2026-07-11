@@ -1,0 +1,15 @@
+{
+  "chat": {
+    "_id": "6a51d727ae81d1a50326d958",
+    "participants": [
+      "609bcfc6f5e7ee853faa0afc",
+      "609bcfc6f5e7ee853faa0afd"
+    ],
+    "type": "private",
+    "__v": 0,
+    "isActive": true,
+    "messages": [],
+    "unreadCount": {}
+  },
+  "messages": []
+}

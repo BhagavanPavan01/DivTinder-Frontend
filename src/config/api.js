@@ -90,9 +90,27 @@ export const logoutWithFallback = async (options = {}) => {
 };
 
 export const getApiErrorMessage = (error) => {
+  if (!error?.response) {
+    if (error?.message?.toLowerCase().includes('network error') || error?.message?.toLowerCase().includes('ssl')) {
+      return 'Network or server connection failed. Please try again later.';
+    }
+    return error?.message || 'Network error occurred.';
+  }
+
   const data = error?.response?.data;
 
   if (typeof data === 'string') {
+    if (
+      data.includes('<html') ||
+      data.includes('<!DOCTYPE') ||
+      data.includes('SSL routines') ||
+      data.includes('Error:')
+    ) {
+      return 'Server encountered an unexpected network error. Please try again.';
+    }
+    if (data.length > 150) {
+      return 'An unexpected server error occurred.';
+    }
     return data;
   }
 

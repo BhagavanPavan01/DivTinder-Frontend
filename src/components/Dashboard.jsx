@@ -310,25 +310,25 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Welcome Header */}
-        <div className="mb-8 flex justify-between items-center">
+        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
               Welcome back, {profile?.firstName}! 👋
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 text-sm sm:text-base">
               {lastLogin && `Last login: ${formatTimeAgo(lastLogin)}`}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
             {/* Chat Button with Notification Badge */}
             <button
               onClick={() => openChat()}
-              className="relative flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 transition shadow-md"
+              className="flex-1 sm:flex-none relative flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 transition shadow-md"
             >
               <span>💬</span>
               Chats
               {unreadChatsCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 sm:w-5 sm:h-5 sm:text-xs flex items-center justify-center animate-pulse">
                   {unreadChatsCount > 99 ? '99+' : unreadChatsCount}
                 </span>
               )}
@@ -337,7 +337,7 @@ const Dashboard = () => {
             {/* Requests Button */}
             <button
               onClick={() => navigate("/requests")}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition shadow-sm"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition shadow-sm border border-gray-100"
             >
               <span>📨</span>
               Requests {stats.pendingCount > 0 && `(${stats.pendingCount})`}
@@ -346,14 +346,14 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 transform hover:scale-105 transition">
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between text-center sm:text-left gap-2 sm:gap-0">
               <div>
-                <p className="text-gray-500 text-sm">Skills</p>
-                <p className="text-2xl font-bold text-gray-800">{profile?.skills?.length || 0}</p>
+                <p className="text-gray-500 text-xs sm:text-sm">Skills</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800">{profile?.skills?.length || 0}</p>
               </div>
-              <div className="bg-purple-100 p-3 rounded-full text-purple-600 text-2xl">
+              <div className="bg-purple-100 p-2 sm:p-3 rounded-full text-purple-600 text-xl sm:text-2xl hidden sm:block">
                 💻
               </div>
             </div>
@@ -361,14 +361,14 @@ const Dashboard = () => {
 
           <Link
             to="/connections"
-            className="block bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition hover:shadow-xl cursor-pointer"
+            className="block bg-white rounded-xl shadow-lg p-4 sm:p-6 transform hover:scale-105 transition hover:shadow-xl cursor-pointer"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between text-center sm:text-left gap-2 sm:gap-0">
               <div>
-                <p className="text-gray-500 text-sm">Connections</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.connectionsCount}</p>
+                <p className="text-gray-500 text-xs sm:text-sm">Connections</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800">{stats.connectionsCount}</p>
               </div>
-              <div className="bg-blue-100 p-3 rounded-full text-blue-600 text-2xl">
+              <div className="bg-blue-100 p-2 sm:p-3 rounded-full text-blue-600 text-xl sm:text-2xl hidden sm:block">
                 🤝
               </div>
             </div>
@@ -376,14 +376,14 @@ const Dashboard = () => {
 
           <Link
             to="/requests"
-            className="block bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition hover:shadow-xl cursor-pointer"
+            className="block bg-white rounded-xl shadow-lg p-4 sm:p-6 transform hover:scale-105 transition hover:shadow-xl cursor-pointer"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between text-center sm:text-left gap-2 sm:gap-0">
               <div>
-                <p className="text-gray-500 text-sm">Pending</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.pendingCount}</p>
+                <p className="text-gray-500 text-xs sm:text-sm">Pending</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800">{stats.pendingCount}</p>
               </div>
-              <div className="bg-orange-100 p-3 rounded-full text-orange-600 text-2xl">
+              <div className="bg-orange-100 p-2 sm:p-3 rounded-full text-orange-600 text-xl sm:text-2xl hidden sm:block">
                 ⏳
               </div>
             </div>
@@ -391,14 +391,14 @@ const Dashboard = () => {
 
           <Link
             to="/sentRequests"
-            className="block bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition hover:shadow-xl cursor-pointer"
+            className="block bg-white rounded-xl shadow-lg p-4 sm:p-6 transform hover:scale-105 transition hover:shadow-xl cursor-pointer"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between text-center sm:text-left gap-2 sm:gap-0">
               <div>
-                <p className="text-gray-500 text-sm">Sent</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.sentCount}</p>
+                <p className="text-gray-500 text-xs sm:text-sm">Sent</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800">{stats.sentCount}</p>
               </div>
-              <div className="bg-green-100 p-3 rounded-full text-green-600 text-2xl">
+              <div className="bg-green-100 p-2 sm:p-3 rounded-full text-green-600 text-xl sm:text-2xl hidden sm:block">
                 📤
               </div>
             </div>

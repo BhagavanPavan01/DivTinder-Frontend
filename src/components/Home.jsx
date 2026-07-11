@@ -1,7 +1,13 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Home = () => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return null; // or a spinner
+  if (isAuthenticated) return <Navigate to="/feed" replace />;
+
   return (
     <div className="relative overflow-hidden">
 

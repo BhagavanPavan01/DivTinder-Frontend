@@ -27,7 +27,8 @@ const Login = () => {
       }
     } catch (err) {
       console.error("Login encountered an error:", err);
-      setError("Login failed. Please try again.");
+      // The error formatting is now safely handled by config/api.js
+      setError("Login failed. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -53,14 +54,30 @@ const Login = () => {
         </div>
 
         {/* Login Card */}
-        <div className="w-full max-w-md backdrop-blur-xl bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-8 animate-slide-up delay-300">
+        <div className="w-full max-w-md backdrop-blur-xl bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-8 animate-slide-up delay-300 relative overflow-hidden">
+
+          {/* Shimmer Overlay Loading State */}
+          {loading && (
+            <div className="absolute inset-0 z-20 bg-white/40 backdrop-blur-md flex flex-col p-8 space-y-6 animate-pulse">
+              <div className="h-8 bg-gray-200/50 rounded-lg w-1/2 mx-auto mb-4"></div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200/50 rounded w-1/4"></div>
+                <div className="h-12 bg-gray-200/50 rounded-xl w-full"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200/50 rounded w-1/4"></div>
+                <div className="h-12 bg-gray-200/50 rounded-xl w-full"></div>
+              </div>
+              <div className="h-12 bg-gray-300/60 rounded-xl w-full mt-4"></div>
+            </div>
+          )}
 
           <h2 className="text-3xl font-bold text-white text-center mb-8">
             Welcome Back 🔥
           </h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-white text-center">
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-white text-center text-sm">
               {error}
             </div>
           )}
@@ -68,43 +85,44 @@ const Login = () => {
           <div className="space-y-6">
 
             <div>
-              <label className="block text-white mb-2">Email :</label>
+              <label className="block text-white mb-2 font-medium">Email Address</label>
               <input
                 type="email"
                 value={emailId}
                 placeholder="Enter your email"
                 className="w-full px-4 py-3 rounded-xl bg-white/30 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-yellow-300 transition"
                 onChange={(e) => setEmailId(e.target.value)}
+                disabled={loading}
               />
             </div>
 
             <div>
-              <label className="block text-white mb-2">Password</label>
+              <label className="block text-white mb-2 font-medium">Password</label>
               <input
                 type="password"
                 value={password}
                 placeholder="Enter your password"
                 className="w-full px-4 py-3 rounded-xl bg-white/30 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-yellow-300 transition"
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
               />
             </div>
 
             <div className="flex justify-between text-sm text-white/80">
-              <a className="hover:text-white transition cursor-pointer">
+              <span className="hover:text-white transition cursor-pointer">
                 Forgot password?
-              </a>
-              <Link to="/signup" className="hover:text-white transition cursor-pointer">
+              </span>
+              <Link to="/signup" className="hover:text-white transition cursor-pointer font-semibold underline-offset-2 hover:underline">
                 Create account
               </Link>
             </div>
 
             <button
-              className={`w-full py-3 rounded-xl bg-white text-pink-600 font-bold text-lg hover:bg-yellow-300 hover:text-black transition-all duration-300 transform hover:scale-105 ${loading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+              className={`w-full py-3 rounded-xl bg-white text-pink-600 font-bold text-lg hover:bg-yellow-300 hover:text-black transition-all duration-300 transform hover:scale-105 shadow-xl`}
               onClick={handleLogin}
-              disabled={loading}
+              disabled={loading || !emailId || !password}
             >
-              {loading ? 'Logging in...' : 'Login'}
+              Login
             </button>
 
           </div>

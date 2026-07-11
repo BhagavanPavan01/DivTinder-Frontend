@@ -56,7 +56,7 @@ class ChatService {
       const cached = cache.get(cacheKey);
       if (cached && page === 1) return cached;
 
-      const response = await this.api.get(`/chats/${chatId}/messages`, {
+      const response = await this.api.get(`/chats/${chatId}`, {
         params: { page, limit }
       });
 

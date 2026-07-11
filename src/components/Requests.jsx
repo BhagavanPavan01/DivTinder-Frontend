@@ -31,7 +31,7 @@ const Requests = () => {
   const [processingId, setProcessingId] = useState(null);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("pending"); // 'pending', 'sent'
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,13 +59,13 @@ const Requests = () => {
     try {
       setProcessingId(requestId);
       await api.post(`/request/review/${status}/${requestId}`);
-      
+
       // Remove the processed request from list
       setRequests(requests.filter(req => req._id !== requestId));
-      
+
       // Show success message (you can add a toast notification here)
       console.log(`Request ${status} successfully`);
-      
+
     } catch (err) {
       console.error(`Error ${status} request:`, err);
       alert(err.response?.data?.message || `Failed to ${status} request`);
@@ -78,7 +78,7 @@ const Requests = () => {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
-    
+
     if (seconds < 60) return 'just now';
     if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
@@ -119,7 +119,7 @@ const Requests = () => {
         <div className="text-center bg-white p-8 rounded-2xl shadow-xl">
           <div className="text-red-500 text-5xl mb-4">😕</div>
           <p className="text-xl text-gray-800 mb-4">{error}</p>
-          <button 
+          <button
             onClick={fetchRequests}
             className="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition"
           >
@@ -133,7 +133,7 @@ const Requests = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 pt-20 pb-10">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Connection Requests</h1>
@@ -146,11 +146,10 @@ const Requests = () => {
         <div className="flex gap-4 mb-6 border-b border-gray-200">
           <button
             onClick={() => setActiveTab("pending")}
-            className={`px-4 py-2 font-medium text-sm transition-colors relative ${
-              activeTab === "pending"
+            className={`px-4 py-2 font-medium text-sm transition-colors relative ${activeTab === "pending"
                 ? "text-pink-600 border-b-2 border-pink-600"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
           >
             Pending Requests
             {requests.length > 0 && (
@@ -161,11 +160,10 @@ const Requests = () => {
           </button>
           <button
             onClick={() => navigate("/sentRequests")}
-            className={`px-4 py-2 font-medium text-sm transition-colors ${
-              activeTab === "sent"
+            className={`px-4 py-2 font-medium text-sm transition-colors ${activeTab === "sent"
                 ? "text-pink-600 border-b-2 border-pink-600"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
           >
             Sent Requests →
           </button>
@@ -191,37 +189,37 @@ const Requests = () => {
                 key={request._id}
                 className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-l-4 border-pink-500"
               >
-                <div className="p-6">
-                  <div className="flex items-start gap-6">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
                     {/* Avatar */}
                     <div className="flex-shrink-0">
                       {request.requester?.photoUrl ? (
                         <img
                           src={request.requester.photoUrl}
                           alt={request.requester.name}
-                          className="w-20 h-20 rounded-full object-cover border-4 border-pink-100"
+                          className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-pink-100"
                         />
                       ) : (
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl border-4 border-pink-100">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl sm:text-3xl border-4 border-pink-100">
                           {request.requester?.firstName?.charAt(0)}
                         </div>
                       )}
                     </div>
 
                     {/* User Info */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between">
-                        <div>
+                    <div className="flex-1 w-full">
+                      <div className="flex flex-col md:flex-row items-center md:items-start justify-between w-full">
+                        <div className="text-center md:text-left w-full md:w-auto">
                           <h2 className="text-xl font-bold text-gray-800">
                             {request.requester?.name}
                           </h2>
-                          <p className="text-gray-500 flex items-center gap-1 mt-1">
+                          <p className="text-gray-500 flex items-center justify-center md:justify-start gap-1 mt-1 text-sm sm:text-base">
                             <span>📧</span>
                             {request.requester?.email}
                           </p>
-                          
+
                           {/* Age & Gender */}
-                          <div className="flex items-center gap-3 mt-2">
+                          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-2">
                             {request.requester?.age && (
                               <span className="text-sm text-gray-600 flex items-center gap-1">
                                 <span>🎂</span> {request.requester.age} years
@@ -236,14 +234,14 @@ const Requests = () => {
 
                           {/* About */}
                           {request.requester?.about && (
-                            <p className="text-gray-600 text-sm mt-3 line-clamp-2">
+                            <p className="text-gray-600 text-sm mt-3 line-clamp-2 md:line-clamp-3">
                               {request.requester.about}
                             </p>
                           )}
 
                           {/* Skills */}
                           {request.requester?.skills?.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-4">
+                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-4">
                               {request.requester.skills.slice(0, 5).map((skill, idx) => (
                                 <span
                                   key={idx}
@@ -261,23 +259,23 @@ const Requests = () => {
                           )}
 
                           {/* Request Time */}
-                          <p className="text-xs text-gray-400 mt-4 flex items-center gap-1">
+                          <p className="text-xs text-gray-400 mt-4 flex items-center justify-center md:justify-start gap-1">
                             <span>⏰</span>
                             Received {formatTimeAgo(request.createdAt)}
                           </p>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex flex-col gap-2 ml-4">
+                        <div className="flex flex-row md:flex-col justify-center w-full md:w-auto gap-2 mt-5 md:mt-0 md:ml-4">
                           <button
                             onClick={() => handleRequest(request._id, 'accepted')}
                             disabled={processingId === request._id}
-                            className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            className="flex-1 md:flex-none px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2 text-sm sm:text-base"
                           >
                             {processingId === request._id ? (
                               <>
                                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                <span>Processing</span>
+                                <span className="hidden sm:inline">Processing</span>
                               </>
                             ) : (
                               <>
@@ -286,11 +284,11 @@ const Requests = () => {
                               </>
                             )}
                           </button>
-                          
+
                           <button
                             onClick={() => handleRequest(request._id, 'rejected')}
                             disabled={processingId === request._id}
-                            className="px-6 py-2.5 bg-white border-2 border-red-500 text-red-500 rounded-lg hover:bg-red-50 transition-all duration-200 font-medium shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            className="flex-1 md:flex-none px-4 sm:px-6 py-2 sm:py-2.5 bg-white border-2 border-red-500 text-red-500 rounded-lg hover:bg-red-50 transition-all duration-200 font-medium shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2 text-sm sm:text-base"
                           >
                             <span>✗</span>
                             <span>Decline</span>
