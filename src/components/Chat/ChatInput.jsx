@@ -103,8 +103,7 @@ const ChatInput = ({ chatId, receiverId, onSendMessage, onSendTyping, isConnecte
             ref={inputRef}
             value={text}
             onChange={onTextChange}
-            placeholder={isConnected ? 'Type a message' : 'Connecting...'}
-            disabled={!isConnected}
+            placeholder="Type a message"
             className="w-full bg-transparent border-none outline-none text-[15px] text-[#111b21] placeholder:text-[#8696a0]"
           />
         </label>
@@ -112,7 +111,6 @@ const ChatInput = ({ chatId, receiverId, onSendMessage, onSendTyping, isConnecte
         {text.trim() ? (
           <button
             type="submit"
-            disabled={!isConnected}
             className="p-2 bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full transition-colors flex-shrink-0 ml-1 flex items-center justify-center w-10 h-10 shadow-sm"
           >
             <svg viewBox="0 0 24 24" width="24" height="24" className="fill-current" style={{ transform: 'translateX(2px)' }}>
