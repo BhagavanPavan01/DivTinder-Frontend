@@ -290,6 +290,28 @@ const ChatPage = () => {
           tempId
         });
       }
+
+      // Automatic fallback for dropped sockets (like Vite proxy ECONNABORTED)
+      setTimeout(() => {
+        setMessages(currentMessages => {
+          const isStillTemp = currentMessages.some(m => m._id === tempId && m.isTemp);
+          if (isStillTemp) {
+            console.warn('Socket confirmation timed out, falling back to REST API for guaranteed DB storage.');
+            chatService.sendMessage(chatId, text)
+              .then(result => {
+                const savedMessage = result.data || result;
+                setMessages(prev => prev.map(m => m._id === tempId ? { ...savedMessage, isOwn: true, isRead: false } : m));
+              })
+              .catch(err => {
+                console.error("Error on REST fallback after socket timeout", err);
+                // Cannot save, cleanup optimistic message
+                setMessages(prev => prev.filter(m => m._id !== tempId));
+              });
+          }
+          return currentMessages;
+        });
+      }, 3500);
+
     } else {
       try {
         // Fallback to REST API if socket is disconnected, guaranteed perfectly persistent storing.
