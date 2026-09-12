@@ -31,9 +31,7 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-6 font-medium">
             {isAuthenticated && user ? (
               <>
-                {/* <Link to="/feed" className="hover:text-pink-500 transition duration-300 text-gray-800 font-bold">
-                Feed
-              </Link> */}
+
 
                 <Link to="/dashboard" className="hover:text-pink-500 transition duration-300 text-gray-800 font-bold">
                   Dashboard
@@ -43,6 +41,9 @@ const Navbar = () => {
                   Messages
                 </Link>
 
+                <Link to="/feed" className="hover:text-pink-500 transition duration-300 text-gray-800 font-bold">
+                  Feed
+                </Link>
                 <div className="relative">
                   <button
                     onClick={() => setShowDropdown(!showDropdown)}

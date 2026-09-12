@@ -80,12 +80,14 @@ const Dashboard = () => {
         profileRes,
         pendingCountRes,
         connectionsRes,
-        sentRes
+        sentRes,
+        feedRes
       ] = await Promise.all([
         api.get("/profile/view"),
         api.get("/request/pending/count"),
         api.get("/connections"),
-        api.get("/request/sent")
+        api.get("/request/sent"),
+        api.get("/feed?page=1&limit=4").catch(() => ({ data: [] }))
       ]);
 
       setProfile(profileRes.data);
@@ -99,8 +101,20 @@ const Dashboard = () => {
       // Generate activities based on real data
       generateActivities(profileRes.data, pendingCountRes.data.count, connectionsRes.data.data);
 
+      // Extract feed users for recommendations
+      let feedUsers = [];
+      if (feedRes && feedRes.data) {
+        if (Array.isArray(feedRes.data)) {
+          feedUsers = feedRes.data;
+        } else if (feedRes.data.data && Array.isArray(feedRes.data.data)) {
+          feedUsers = feedRes.data.data;
+        } else if (feedRes.data.users && Array.isArray(feedRes.data.users)) {
+          feedUsers = feedRes.data.users;
+        }
+      }
+
       // Generate recommendations
-      generateRecommendations();
+      generateRecommendations(feedUsers);
 
       setLoading({
         profile: false,
@@ -194,35 +208,22 @@ const Dashboard = () => {
     setRecentActivities(activities.slice(0, 5));
   };
 
-  const generateRecommendations = () => {
-    const mockRecommendations = [
-      {
-        id: "69a4538c87dcca8c70a09a57", // Example user ID
-        name: "Sarah Johnson",
-        role: "Senior MERN Stack Developer",
-        skills: ["React", "Node.js", "MongoDB"],
-        avatar: "https://i.pravatar.cc/40?img=1",
-        match: "95% match"
-      },
-      {
-        id: "69ca281c44eb142dbbbf6d53", // Example user ID
-        name: "Michael Chen",
-        role: "Machine Learning Engineer",
-        skills: ["Python", "Deep Learning", "AI"],
-        avatar: "https://i.pravatar.cc/40?img=2",
-        match: "88% match"
-      },
-      {
-        id: "69a4538c87dcca8c70a09a58", // Example user ID
-        name: "Priya Patel",
-        role: "Full Stack Developer",
-        skills: ["Java", "Spring Boot", "React"],
-        avatar: "https://i.pravatar.cc/40?img=3",
-        match: "82% match"
-      }
-    ];
+  const generateRecommendations = (feedUsers = []) => {
+    if (!feedUsers || feedUsers.length === 0) {
+      setRecommendations([]);
+      return;
+    }
 
-    setRecommendations(mockRecommendations);
+    const formattedRecommendations = feedUsers.slice(0, 4).map(user => ({
+      id: user._id,
+      name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      role: user.gender ? (user.gender.charAt(0).toUpperCase() + user.gender.slice(1)) : "Discover",
+      skills: user.skills ? user.skills.slice(0, 3) : [],
+      avatar: user.photoUrl || "https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp",
+      match: "New"
+    }));
+
+    setRecommendations(formattedRecommendations);
   };
 
   const formatTimeAgo = (date) => {
@@ -550,45 +551,45 @@ const Dashboard = () => {
               <h3 className="text-xl font-semibold text-gray-800 mb-6">Recommended for You</h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {recommendations.map((rec) => (
-                  <div key={rec.id} className="flex items-start gap-3 p-4 rounded-lg border border-gray-100 hover:border-pink-200 hover:shadow-md transition-all">
-                    <img
-                      src={rec.avatar}
-                      alt={rec.name}
-                      className="w-12 h-12 rounded-full"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-gray-800">{rec.name}</p>
-                        <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                          {rec.match}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">{rec.role}</p>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {rec.skills.map((skill, idx) => (
-                          <span key={idx} className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
-                            {skill}
+                {recommendations.length > 0 ? (
+                  recommendations.map((rec) => (
+                    <div key={rec.id} className="flex items-start gap-3 p-4 rounded-lg border border-gray-100 hover:border-pink-200 hover:shadow-md transition-all">
+                      <img
+                        src={rec.avatar}
+                        alt={rec.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-1">
+                          <p className="font-medium text-gray-800 truncate" title={rec.name}>{rec.name}</p>
+                          <span className="text-[10px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex-shrink-0">
+                            {rec.match}
                           </span>
-                        ))}
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => navigate(`/profile/${rec.id}`)}
-                          className="text-xs text-pink-600 hover:text-pink-700 font-medium"
-                        >
-                          View Profile →
-                        </button>
-                        <button
-                          onClick={() => openChat(rec.id)}
-                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          💬 Message
-                        </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 capitalize truncate">{rec.role}</p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {rec.skills.map((skill, idx) => (
+                            <span key={idx} className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full truncate max-w-full">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => navigate(`/profile/${rec.id}`)}
+                            className="text-xs text-pink-600 hover:text-pink-700 font-medium whitespace-nowrap"
+                          >
+                            View Profile →
+                          </button>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="col-span-full py-6 text-center text-gray-500 text-sm bg-gray-50 rounded-lg">
+                    No recommendations found right now.
                   </div>
-                ))}
+                )}
               </div>
 
               <button
