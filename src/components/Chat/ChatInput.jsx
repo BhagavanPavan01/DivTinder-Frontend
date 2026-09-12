@@ -95,8 +95,7 @@ const ChatInput = ({ chatId, receiverId, onSendMessage, onSendTyping, isConnecte
           <svg viewBox="0 0 24 24" width="24" height="24" className="fill-current"><path d="M19 12h-6v6h-2v-6H5v-2h6V4h2v6h6v2z"></path></svg>
         </button>
 
-        <div
-          onClick={() => inputRef.current?.focus()}
+        <label
           className="flex-1 bg-white rounded-lg flex items-center border border-transparent focus-within:border-white shadow-sm overflow-hidden py-1 px-3 min-h-[40px] cursor-text"
         >
           <input
@@ -108,7 +107,7 @@ const ChatInput = ({ chatId, receiverId, onSendMessage, onSendTyping, isConnecte
             disabled={!isConnected}
             className="w-full bg-transparent border-none outline-none text-[15px] text-[#111b21] placeholder:text-[#8696a0]"
           />
-        </div>
+        </label>
 
         {text.trim() ? (
           <button
