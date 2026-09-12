@@ -34,7 +34,7 @@ const ChatPage = () => {
       console.log('New private message received:', messageData);
 
       // Add message to current chat if active
-      if (activeChat?.chatId === messageData.chatId) {
+      if (activeChat && String(activeChat.chatId) === String(messageData.chatId)) {
         setMessages(prev => [...prev, {
           _id: messageData._id,
           text: messageData.text,
@@ -53,7 +53,7 @@ const ChatPage = () => {
     socket.on('new-global-message', (messageData) => {
       console.log('New global message received:', messageData);
 
-      if (activeChat?.type === 'global') {
+      if (activeChat?.type === 'global' && String(activeChat.chatId) === String(messageData.chatId)) {
         setMessages(prev => [...prev, {
           _id: messageData._id,
           text: messageData.text,
@@ -137,8 +137,10 @@ const ChatPage = () => {
 
   const updateConversationWithNewMessage = (messageData) => {
     setConversations(prevConversations => {
-      const updated = prevConversations.map(conv => {
-        if (conv.chatId === messageData.chatId) {
+      const exists = prevConversations.some(c => String(c.chatId) === String(messageData.chatId));
+
+      let updated = prevConversations.map(conv => {
+        if (String(conv.chatId) === String(messageData.chatId)) {
           return {
             ...conv,
             lastMessage: {
@@ -150,12 +152,37 @@ const ChatPage = () => {
           };
         }
         return conv;
-      }).sort((a, b) => {
-        const aTime = a.lastMessage?.timestamp || 0;
-        const bTime = b.lastMessage?.timestamp || 0;
+      });
+
+      // If this is a completely new conversation initiated by the sender, inject it lively into the sidebar array!
+      if (!exists && messageData.sender) {
+        updated.push({
+          chatId: messageData.chatId,
+          type: 'private',
+          user: {
+            _id: messageData.senderId,
+            firstName: messageData.sender?.firstName,
+            lastName: messageData.sender?.lastName,
+            photoUrl: messageData.sender?.photoUrl,
+            status: 'online'
+          },
+          lastMessage: {
+            text: messageData.text,
+            timestamp: messageData.createdAt,
+            isOwn: false
+          },
+          unreadCount: 1,
+          updatedAt: messageData.createdAt,
+          isPinned: false,
+          isMuted: false
+        });
+      }
+
+      return updated.sort((a, b) => {
+        const aTime = a.lastMessage?.timestamp || a.updatedAt || 0;
+        const bTime = b.lastMessage?.timestamp || b.updatedAt || 0;
         return new Date(bTime) - new Date(aTime);
       });
-      return updated;
     });
   };
 
@@ -281,15 +308,12 @@ const ChatPage = () => {
     setMessages(prev => [...prev, tempMessage]);
 
     if (socket && isConnected) {
-      if (activeChat?.type === 'global') {
-        socket.emit('global-message', { text, tempId });
-      } else {
-        socket.emit('private-message', {
-          toUserId: receiverId,
-          text,
-          tempId
-        });
-      }
+      // Emit the single unified 'send-message' event which the backend app.js correctly listens for
+      socket.emit('send-message', {
+        chatId: chatId,
+        text,
+        tempId
+      });
 
       // Automatic fallback for dropped sockets (like Vite proxy ECONNABORTED)
       setTimeout(() => {
