@@ -281,13 +281,15 @@ const ChatPage = () => {
     setMessages(prev => [...prev, tempMessage]);
 
     if (socket && isConnected) {
-      // 2. The backend is perfectly wired to store the message in the database using the "send-message" event!
-      socket.emit('send-message', {
-        chatId: chatId,
-        text: text,
-        tempId: tempId,
-        replyTo: null
-      });
+      if (activeChat?.type === 'global') {
+        socket.emit('global-message', { text, tempId });
+      } else {
+        socket.emit('private-message', {
+          toUserId: receiverId,
+          text,
+          tempId
+        });
+      }
     } else {
       try {
         // Fallback to REST API if socket is disconnected, guaranteed perfectly persistent storing.

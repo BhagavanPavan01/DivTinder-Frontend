@@ -1,8 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import EmojiPicker from 'emoji-picker-react';
 
 const ChatInput = ({ chatId, receiverId, onSendMessage, onSendTyping, isConnected, replyingTo, onCancelReply }) => {
   const [text, setText] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const inputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+
+  const onEmojiClick = (emojiObject) => {
+    setText((prev) => prev + emojiObject.emoji);
+  };
 
   // Debounced typing indicator – stops sending after 2s of inactivity
   const handleTyping = useCallback(
@@ -43,6 +50,7 @@ const ChatInput = ({ chatId, receiverId, onSendMessage, onSendTyping, isConnecte
     }
     onSendMessage(chatId, text.trim(), receiverId);
     setText('');
+    setShowEmojiPicker(false);
     // Stop typing after sending
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -62,7 +70,12 @@ const ChatInput = ({ chatId, receiverId, onSendMessage, onSendTyping, isConnecte
   }, [handleTyping]);
 
   return (
-    <div className="flex flex-col w-full z-10 flex-shrink-0 bg-[#f0f2f5] border-t border-gray-200">
+    <div className="flex flex-col w-full z-10 flex-shrink-0 bg-[#f0f2f5] border-t border-gray-200 relative">
+      {showEmojiPicker && (
+        <div className="absolute bottom-16 left-2 z-[60] shadow-xl">
+          <EmojiPicker onEmojiClick={onEmojiClick} />
+        </div>
+      )}
       {replyingTo && (
         <div className="flex items-center justify-between p-3 bg-black/5 mx-2 mt-2 rounded border-l-4 border-purple-500">
           <div className="flex flex-col text-sm pr-4">
@@ -75,16 +88,20 @@ const ChatInput = ({ chatId, receiverId, onSendMessage, onSendTyping, isConnecte
         </div>
       )}
       <form onSubmit={handleSubmit} className="p-2.5 flex items-center space-x-2 w-full">
-        <button type="button" onClick={() => alert("Emoji picker coming soon!")} className="p-2 text-[#54656f] hover:bg-white/50 rounded-full transition-colors flex-shrink-0">
+        <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 text-[#54656f] hover:bg-white/50 rounded-full transition-colors flex-shrink-0">
           <svg viewBox="0 0 24 24" width="24" height="24" className="fill-current"><path d="M12 7a2 2 0 1 0-.001-4.001A2 2 0 0 0 12 7zm0 2a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 9zm0 6a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 15z"></path></svg>
         </button>
         <button type="button" onClick={() => alert("File attachment upload interface ready to be connected to backend!")} className="p-2 text-[#54656f] hover:bg-white/50 rounded-full transition-colors flex-shrink-0">
           <svg viewBox="0 0 24 24" width="24" height="24" className="fill-current"><path d="M19 12h-6v6h-2v-6H5v-2h6V4h2v6h6v2z"></path></svg>
         </button>
 
-        <div className="flex-1 bg-white rounded-lg flex items-center border border-transparent focus-within:border-white shadow-sm overflow-hidden py-1 px-3 min-h-[40px]">
+        <div
+          onClick={() => inputRef.current?.focus()}
+          className="flex-1 bg-white rounded-lg flex items-center border border-transparent focus-within:border-white shadow-sm overflow-hidden py-1 px-3 min-h-[40px] cursor-text"
+        >
           <input
             type="text"
+            ref={inputRef}
             value={text}
             onChange={onTextChange}
             placeholder={isConnected ? 'Type a message' : 'Connecting...'}
